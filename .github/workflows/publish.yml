@@ -11,11 +11,11 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '5.0.x'
+          dotnet-version: '6.0.x'
 
       - name: Publish on version change
         id: publish_nuget
-        uses: Rebel028/publish-nuget@v2.6.3
+        uses: alirezanet/publish-nuget@v3.0.4
         with:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: src/DotnetThirdPartyNotices/DotnetThirdPartyNotices.csproj
