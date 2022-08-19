@@ -5,29 +5,33 @@ using Microsoft.Build.Locator;
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+var scanDirArgument = new Argument<string>("scan-dir", "Path of the directory to look for projects (optional)") {Arity = ArgumentArity.ZeroOrOne};
+var outputFileOption = new Option<string>(
+    "--output-filename",
+    () => "third-party-notices.txt",
+    "Output filename");
+var copyToOutdirOption =
+    new Option<bool>("--copy-to-outdir", () => false, "Copy to output directory in Release configuration");
+
 var rootCommand = new RootCommand("A tool to generate file with third party legal notices for .NET projects")
 {
-    new Argument<string>("scan-dir", "Path of the directory to look for projects (optional)"),
-    new Option<string>(
-        "--output-filename",
-        () => "third-party-notices.txt",
-        "Output filename"),
-    new Option<bool>("--copy-to-outdir", () => false, "Copy to output directory in Release configuration")
+    scanDirArgument,
+    outputFileOption,
+    copyToOutdirOption
 };
 
-rootCommand.Handler = CommandHandler.Create<string, string, bool>(async (scanDir, outputFilename, copyToOutDir) =>
+rootCommand.SetHandler(async (scanDir, outputFilename, copyToOutDir) =>
 {
     MSBuildLocator.RegisterDefaults();
-
+    
     await Run(scanDir, outputFilename, copyToOutDir);
-});
+}, scanDirArgument, outputFileOption, copyToOutdirOption);
 
 return await rootCommand.InvokeAsync(args);
 
