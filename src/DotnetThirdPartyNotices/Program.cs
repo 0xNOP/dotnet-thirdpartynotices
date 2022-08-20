@@ -16,14 +16,14 @@ var outputFileOption = new Option<string>(
     "--output-filename",
     () => "third-party-notices.txt",
     "Output filename");
-var copyToOutdirOption =
+var copyToOutDirOption =
     new Option<bool>("--copy-to-outdir", () => false, "Copy to output directory in Release configuration");
 
 var rootCommand = new RootCommand("A tool to generate file with third party legal notices for .NET projects")
 {
     scanDirArgument,
     outputFileOption,
-    copyToOutdirOption
+    copyToOutDirOption
 };
 
 rootCommand.SetHandler(async (scanDir, outputFilename, copyToOutDir) =>
@@ -31,7 +31,7 @@ rootCommand.SetHandler(async (scanDir, outputFilename, copyToOutDir) =>
     MSBuildLocator.RegisterDefaults();
     
     await Run(scanDir, outputFilename, copyToOutDir);
-}, scanDirArgument, outputFileOption, copyToOutdirOption);
+}, scanDirArgument, outputFileOption, copyToOutDirOption);
 
 return await rootCommand.InvokeAsync(args);
 

@@ -2,69 +2,68 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace DotnetThirdPartyNotices.Extensions
+namespace DotnetThirdPartyNotices.Extensions;
+
+internal static class UriExtensions
 {
-    internal static class UriExtensions
+    public static bool IsGithubUri(this Uri uri) => uri.Host == "github.com";
+
+    public static Uri ToRawGithubUserContentUri(this Uri uri)
     {
-        public static bool IsGithubUri(this Uri uri) => uri.Host == "github.com";
+        if (!IsGithubUri(uri))
+            throw new InvalidOperationException();
 
-        public static Uri ToRawGithubUserContentUri(this Uri uri)
+        var uriBuilder = new UriBuilder(uri) { Host = "raw.githubusercontent.com" };
+        uriBuilder.Path = uriBuilder.Path.Replace("/blob", string.Empty);
+        return uriBuilder.Uri;
+    }
+
+    public static async Task<Uri> GetRedirectUri(this Uri uri)
+    {
+        using var httpClientHandler = new HttpClientHandler
         {
-            if (!IsGithubUri(uri))
-                throw new InvalidOperationException();
+            AllowAutoRedirect = false
+        };
+        using var httpClient = new HttpClient(httpClientHandler);
+        var httpResponseMessage = await httpClient.GetAsync(uri);
 
-            var uriBuilder = new UriBuilder(uri) { Host = "raw.githubusercontent.com" };
-            uriBuilder.Path = uriBuilder.Path.Replace("/blob", string.Empty);
-            return uriBuilder.Uri;
+        var statusCode = (int)httpResponseMessage.StatusCode;
+
+        if (statusCode is < 300 or > 399)
+        {
+            return null;
         }
 
-        public static async Task<Uri> GetRedirectUri(this Uri uri)
+        var redirectUri = httpResponseMessage.Headers.Location;
+        if (!redirectUri.IsAbsoluteUri)
         {
-            using var httpClientHandler = new HttpClientHandler
-            {
-                AllowAutoRedirect = false
-            };
-            using var httpClient = new HttpClient(httpClientHandler);
-            var httpResponseMessage = await httpClient.GetAsync(uri);
+            redirectUri = new Uri(httpResponseMessage.RequestMessage.RequestUri, redirectUri);
+        }
 
-            var statusCode = (int)httpResponseMessage.StatusCode;
+        return redirectUri;
+    }
 
-            if (statusCode < 300 || statusCode > 399)
+    public static async Task<string> GetPlainText(this Uri uri)
+    {
+        using var httpClient = new HttpClient();
+        var httpResponseMessage = await httpClient.GetAsync(uri);
+        if (!httpResponseMessage.IsSuccessStatusCode && uri.AbsolutePath.EndsWith(".txt"))
+        {
+            // try without .txt extension
+            var fixedUri = new UriBuilder(uri);
+            fixedUri.Path = fixedUri.Path.Remove(fixedUri.Path.Length - 4);
+            httpResponseMessage = await httpClient.GetAsync(fixedUri.Uri);
+            if (!httpResponseMessage.IsSuccessStatusCode)
             {
                 return null;
             }
-
-            var redirectUri = httpResponseMessage.Headers.Location;
-            if (!redirectUri.IsAbsoluteUri)
-            {
-                redirectUri = new Uri(httpResponseMessage.RequestMessage.RequestUri, redirectUri);
-            }
-
-            return redirectUri;
         }
 
-        public static async Task<string> GetPlainText(this Uri uri)
+        if (httpResponseMessage.Content.Headers.ContentType.MediaType != "text/plain")
         {
-            using var httpClient = new HttpClient();
-            var httpResponseMessage = await httpClient.GetAsync(uri);
-            if (!httpResponseMessage.IsSuccessStatusCode && uri.AbsolutePath.EndsWith(".txt"))
-            {
-                // try without .txt extension
-                var fixedUri = new UriBuilder(uri);
-                fixedUri.Path = fixedUri.Path.Remove(fixedUri.Path.Length - 4);
-                httpResponseMessage = await httpClient.GetAsync(fixedUri.Uri);
-                if (!httpResponseMessage.IsSuccessStatusCode)
-                {
-                    return null;
-                }
-            }
-
-            if (httpResponseMessage.Content.Headers.ContentType.MediaType != "text/plain")
-            {
-                return null;
-            }
-
-            return await httpResponseMessage.Content.ReadAsStringAsync();
+            return null;
         }
+
+        return await httpResponseMessage.Content.ReadAsStringAsync();
     }
 }
