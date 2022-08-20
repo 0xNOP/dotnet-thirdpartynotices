@@ -8,6 +8,8 @@ using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Logging;
+using Serilog;
+using ILogger = Microsoft.Build.Framework.ILogger;
 
 namespace DotnetThirdPartyNotices.Extensions;
 
@@ -25,7 +27,7 @@ internal static class ProjectExtensions
         var projectInstance = project.CreateProjectInstance();
         var targetFrameworkIdentifier = projectInstance.GetPropertyValue("TargetFrameworkIdentifier");
 
-        Console.WriteLine($"Target framework: {targetFrameworkIdentifier}");
+        Log.Information("Target framework: {TargetFrameworkIdentifier}", targetFrameworkIdentifier);
 
         switch (targetFrameworkIdentifier)
         {

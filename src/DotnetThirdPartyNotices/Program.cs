@@ -2,7 +2,6 @@
 using DotnetThirdPartyNotices.Models;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Locator;
-using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Diagnostics;
@@ -10,6 +9,12 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .CreateLogger();
 
 var scanDirArgument = new Argument<string>("scan-dir", "Path of the directory to look for projects (optional)") {Arity = ArgumentArity.ZeroOrOne};
 var outputFileOption = new Option<string>(
@@ -38,12 +43,12 @@ return await rootCommand.InvokeAsync(args);
 static async Task Run(string scanDir, string outputFilename, bool copyToOutputDir)
 {
     var scanDirectory = scanDir ?? Directory.GetCurrentDirectory();
-    Console.WriteLine(scanDirectory);
+    Log.Information("Scan directory {ScanDirectory}", scanDirectory);
     var projectFilePath = Directory.GetFiles(scanDirectory, "*.*", SearchOption.TopDirectoryOnly)
         .SingleOrDefault(s => s.EndsWith(".csproj") || s.EndsWith(".fsproj"));
     if (projectFilePath == null)
     {
-        Console.WriteLine("No C# or F# project file found in the current directory.");
+        Log.Error("No C# or F# project file found in the current directory");
         return;
     }
 
@@ -51,7 +56,7 @@ static async Task Run(string scanDir, string outputFilename, bool copyToOutputDi
     project.SetProperty("Configuration", "Release");
     project.SetProperty("DesignTimeBuild", "true");
     
-    Console.WriteLine("Resolving files...");
+    Log.Information("Resolving files...");
     
     var stopwatch = new Stopwatch();
 
@@ -60,25 +65,28 @@ static async Task Run(string scanDir, string outputFilename, bool copyToOutputDi
     var licenseContents = new Dictionary<string, List<ResolvedFileInfo>>();
     var resolvedFiles = project.ResolveFiles().ToList();
 
-    Console.WriteLine($"Resolved files count: {resolvedFiles.Count}");
+    Log.Information("Resolved files count: {ResolvedFilesCount}", resolvedFiles.Count);
     
     var unresolvedFiles = new List<ResolvedFileInfo>();
 
     foreach (var resolvedFileInfo in resolvedFiles)
     {
-        Console.WriteLine($"Resolving license for {resolvedFileInfo.RelativeOutputPath}");
-        Console.WriteLine(resolvedFileInfo.NuSpec != null
-            ? $"  Package: {resolvedFileInfo.NuSpec.Id}"
-            : " NOT FOUND");
+        Log.Information("Resolving license for {RelativeOutputPath}", resolvedFileInfo.RelativeOutputPath);
+        if (resolvedFileInfo.NuSpec != null)
+        {
+            Log.Information("Package: {NuSpecId}", resolvedFileInfo.NuSpec.Id);
+        }
+        else
+        {
+            Log.Warning("Package not found");
+        }
 
         var licenseContent = await resolvedFileInfo.ResolveLicense();
         if (licenseContent == null)
         {
             unresolvedFiles.Add(resolvedFileInfo);
-            Console.ForegroundColor = ConsoleColor.DarkRed;
-            Console.WriteLine(
-                $"No license found for {resolvedFileInfo.RelativeOutputPath}. Source path: {resolvedFileInfo.SourcePath}. Verify this manually.");
-            Console.ResetColor();
+            Log.Error("No license found for {RelativeOutputPath}. Source path: {SourcePath}. Verify this manually",
+                resolvedFileInfo.RelativeOutputPath, resolvedFileInfo.SourcePath);
             continue;
         }
 
@@ -90,8 +98,8 @@ static async Task Run(string scanDir, string outputFilename, bool copyToOutputDi
 
     stopwatch.Stop();
 
-    Console.WriteLine($"Resolved {licenseContents.Count} licenses for {licenseContents.Values.Sum(v => v.Count)}/{resolvedFiles.Count} files in {stopwatch.ElapsedMilliseconds}ms");
-    Console.WriteLine($"Unresolved files: {unresolvedFiles.Count}");
+    Log.Information("Resolved {LicenseContentsCount} licenses for {Sum}/{ResolvedFilesCount} files in {StopwatchElapsedMilliseconds}ms", licenseContents.Count, licenseContents.Values.Sum(v => v.Count), resolvedFiles.Count, stopwatch.ElapsedMilliseconds);
+    Log.Information("Unresolved files: {UnresolvedFilesCount}", unresolvedFiles.Count);
 
     stopwatch.Start();
 
@@ -126,9 +134,9 @@ static async Task Run(string scanDir, string outputFilename, bool copyToOutputDi
                 Path.GetFileName(outputFilename));
         }
         
-        Console.WriteLine($"Writing to {outputFilename}...");
+        Log.Information("Writing to {OutputFilename}...", outputFilename);
         await File.WriteAllTextAsync(outputFilename, stringBuilder.ToString());
      
-        Console.WriteLine($"Done in {stopwatch.ElapsedMilliseconds}ms");
+        Log.Information("Done in {StopwatchElapsedMilliseconds}ms", stopwatch.ElapsedMilliseconds);
     }
 }

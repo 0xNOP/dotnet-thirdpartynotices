@@ -58,36 +58,42 @@ internal static class ResolvedFileInfoExtensions
         return license ?? await ResolveLicenseFromFileVersionInfo(resolvedFileInfo.VersionInfo);
     }
 
-    private static readonly Dictionary<Uri, string> LicenseCache = new Dictionary<Uri, string>();
+    private static readonly Dictionary<string, string> LicenseCache = new();
 
     private static async Task<string> ResolveLicense(NuSpec nuSpec)
     {
-        // Try to get the license from license url
-        if (!string.IsNullOrEmpty(nuSpec.LicenseUrl))
-        {
-            var licenseUri = new Uri(nuSpec.LicenseUrl);
-            if (LicenseCache.ContainsKey(licenseUri))
-                return LicenseCache[licenseUri];
+        if (LicenseCache.ContainsKey(nuSpec.Id))
+            return LicenseCache[nuSpec.Id];
+        
+        var licenseUrl = nuSpec.LicenseUrl;
+        var projectUrl = nuSpec.ProjectUrl;
 
-            var license = await ResolveLicenseFromLicenseUri(licenseUri);
+        // Try to get the license from license url
+        if (!string.IsNullOrEmpty(licenseUrl))
+        {
+            if (LicenseCache.ContainsKey(licenseUrl))
+                return LicenseCache[licenseUrl];
+
+            var license = await ResolveLicenseFromLicenseUri(new Uri(nuSpec.LicenseUrl));
             if (license != null)
             {
-                LicenseCache[licenseUri] = license;
+                LicenseCache[licenseUrl] = license;
+                LicenseCache[nuSpec.Id] = license;
                 return license;
             }
         }
 
         // Otherwise try to get the license from project url
-        if (string.IsNullOrEmpty(nuSpec.ProjectUrl)) return null;
+        if (string.IsNullOrEmpty(projectUrl)) return null;
 
-        var projectUri = new Uri(nuSpec.ProjectUrl);
-        if (LicenseCache.ContainsKey(projectUri))
-            return LicenseCache[projectUri];
+        if (LicenseCache.ContainsKey(projectUrl))
+            return LicenseCache[projectUrl];
 
-        var license2 = await ResolveLicenseFromProjectUri(projectUri);
+        var license2 = await ResolveLicenseFromProjectUri(new Uri(projectUrl));
         if (license2 == null) return null;
 
-        LicenseCache[projectUri] = license2;
+        LicenseCache[nuSpec.Id] = license2;
+        LicenseCache[nuSpec.ProjectUrl] = license2;
         return license2;
     }
 
