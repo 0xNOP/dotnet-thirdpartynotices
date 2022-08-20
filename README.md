@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/DotnetThirdPartyNotices)](https://www.nuget.org/packages/DotnetThirdPartyNotices/)
 
-![bcs](https://monophy.com/media/VJHvINHyHYghIsNSSZ/monophy.gif)
+![bcs](https://i.giphy.com/media/giFr1HNq8p5gOQ3nCv/200.gif)
 
 ## Installation
 
