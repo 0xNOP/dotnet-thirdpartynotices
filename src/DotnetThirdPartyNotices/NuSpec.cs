@@ -13,6 +13,7 @@ public record NuSpec
     public string Version { get; init; }
     public string LicenseUrl { get; init; }
     public string ProjectUrl { get; init; }
+    public string RepositoryUrl { get; init; }
 
     private static NuSpec FromTextReader(TextReader streamReader)
     {
@@ -29,7 +30,8 @@ public record NuSpec
             Id = metadata.Element(ns + "id")?.Value,
             Version = metadata.Element(ns + "version")?.Value,
             LicenseUrl = metadata.Element(ns + "licenseUrl")?.Value,
-            ProjectUrl = metadata.Element(ns + "projectUrl")?.Value
+            ProjectUrl = metadata.Element(ns + "projectUrl")?.Value,
+            RepositoryUrl = metadata.Element(ns + "repository")?.Attribute("url")?.Value
         };
     }
 
