@@ -21,6 +21,9 @@ internal static class ResolvedFileInfoExtensions
     private static readonly Lazy<List<IProjectUriLicenseResolver>> ProjectUriLicenseResolvers =
         new(() => LicenseResolvers.Value.OfType<IProjectUriLicenseResolver>().ToList());
 
+    private static readonly Lazy<List<IRepositoryUriLicenseResolver>> RepositoryUriLicenseResolvers =
+        new(() => LicenseResolvers.Value.OfType<IRepositoryUriLicenseResolver>().ToList());
+
     private static readonly Lazy<List<IFileVersionInfoLicenseResolver>> FileVersionInfoLicenseResolvers =
         new(() => LicenseResolvers.Value.OfType<IFileVersionInfoLicenseResolver>().ToList());
 
@@ -32,6 +35,12 @@ internal static class ResolvedFileInfoExtensions
     private static bool TryFindLicenseUriLicenseResolver(Uri licenseUri, out ILicenseUriLicenseResolver resolver)
     {
         resolver = LicenseUriLicenseResolvers.Value.FirstOrDefault(r => r.CanResolve(licenseUri));
+        return resolver != null;
+    }
+
+    private static bool TryFindRepositoryUriLicenseResolver( Uri licenseUri, out IRepositoryUriLicenseResolver resolver )
+    {
+        resolver = RepositoryUriLicenseResolvers.Value.FirstOrDefault(r => r.CanResolve(licenseUri));
         return resolver != null;
     }
 
@@ -66,6 +75,7 @@ internal static class ResolvedFileInfoExtensions
             return LicenseCache[nuSpec.Id];
         
         var licenseUrl = nuSpec.LicenseUrl;
+        var repositoryUrl = nuSpec.RepositoryUrl;
         var projectUrl = nuSpec.ProjectUrl;
 
         // Try to get the license from license url
@@ -78,6 +88,20 @@ internal static class ResolvedFileInfoExtensions
             if (license != null)
             {
                 LicenseCache[licenseUrl] = license;
+                LicenseCache[nuSpec.Id] = license;
+                return license;
+            }
+        }
+
+        // Try to get the license from repository url
+        if (!string.IsNullOrEmpty(repositoryUrl))
+        {
+            if (LicenseCache.ContainsKey(repositoryUrl ))
+                return LicenseCache[repositoryUrl];
+            var license = await ResolveLicenseFromRepositoryUri(new Uri(repositoryUrl));
+            if (license != null)
+            {
+                LicenseCache[repositoryUrl] = license;
                 LicenseCache[nuSpec.Id] = license;
                 return license;
             }
@@ -109,6 +133,20 @@ internal static class ResolvedFileInfoExtensions
 
         // Finally, if no license uri can be found despite all the redirects, try to blindly get it
         return await licenseUri.GetPlainText();
+    }
+
+    private static async Task<string> ResolveLicenseFromRepositoryUri(Uri repositoryUri)
+    {
+        if (TryFindRepositoryUriLicenseResolver(repositoryUri, out var repositoryUriLicenseResolver))
+            return await repositoryUriLicenseResolver.Resolve(repositoryUri);
+
+        // TODO: redirect uris should be checked at the very end to save us from redundant requests (when no resolver for anything can be found)
+        var redirectUri = await repositoryUri.GetRedirectUri();
+        if (redirectUri != null)
+            return await ResolveLicenseFromLicenseUri(redirectUri);
+
+        // Finally, if no license uri can be found despite all the redirects, try to blindly get it
+        return await repositoryUri.GetPlainText();
     }
 
     private static async Task<string> ResolveLicenseFromProjectUri(Uri projectUri)

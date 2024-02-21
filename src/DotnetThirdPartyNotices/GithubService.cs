@@ -32,6 +32,8 @@ internal class GithubService : IDisposable
     public async Task<string> GetLicenseContentFromRepositoryPath(string repositoryPath)
     {
         repositoryPath = repositoryPath.TrimEnd('/');
+        if (repositoryPath.EndsWith(".git"))
+            repositoryPath = repositoryPath[..^4];
         var json = await _httpClient.GetStringAsync($"repos{repositoryPath}/license");
         var jsonDocument = JsonDocument.Parse(json);
 
