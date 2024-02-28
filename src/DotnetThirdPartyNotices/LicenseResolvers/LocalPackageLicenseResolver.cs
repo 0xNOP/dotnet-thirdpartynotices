@@ -13,20 +13,26 @@ internal class LocalPackageLicenseResolver : IFileVersionInfoLicenseResolver
 {
     public bool CanResolve( FileVersionInfo fileVersionInfo ) => true;
 
-    public async Task<string> Resolve( FileVersionInfo fileVersionInfo )
+    public Task<string> Resolve( FileVersionInfo fileVersionInfo )
     {
-        var packageName = Path.GetFileNameWithoutExtension(fileVersionInfo.FileName);
-        var directoryParts = Path.GetDirectoryName(fileVersionInfo.FileName ).Split('\\', StringSplitOptions.RemoveEmptyEntries);
-        for ( var i = 0; i < directoryParts.Length; i++ )
+        return Task.FromResult( Resolve( fileVersionInfo.FileName ) );
+    }
+
+    private string Resolve( string assemblyPath )
+    {
+        var packagePath = Utils.GetPackagePath( assemblyPath );
+        if (packagePath != null)
         {
-            var directoryPath = string.Join('\\', directoryParts.SkipLast(i));
-            var licensePath = Directory.EnumerateFiles(directoryPath, "license.txt", SearchOption.TopDirectoryOnly)
-                .FirstOrDefault();
-            if (licensePath != null)
-                return await File.ReadAllTextAsync(licensePath);
-            if (directoryPath.EndsWith($"\\{packageName}", StringComparison.OrdinalIgnoreCase))
-                break;
+            return Directory.EnumerateFiles( packagePath, "license.txt", new EnumerationOptions
+            {
+                MatchCasing = MatchCasing.CaseInsensitive,
+                RecurseSubdirectories = false
+            } ).FirstOrDefault();
         }
-        return null;
+        return Directory.EnumerateFiles( Path.GetDirectoryName( assemblyPath ), "license.txt", new EnumerationOptions
+        {
+            MatchCasing = MatchCasing.CaseInsensitive,
+            RecurseSubdirectories = false
+        } ).FirstOrDefault();
     }
 }
