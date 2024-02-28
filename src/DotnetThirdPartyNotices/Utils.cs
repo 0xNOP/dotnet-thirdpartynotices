@@ -26,18 +26,22 @@ internal static partial class Utils
     public static string GetPackagePath( string assemblyPath )
     {
         var directoryParts = Path.GetDirectoryName( assemblyPath ).Split( '\\', StringSplitOptions.RemoveEmptyEntries );
-        // New structure: packages\{packageName}\{version}\lib\{targetFramework}\{packageName}.dll
-        if (NewNugetVersionRegex().IsMatch( directoryParts.SkipLast( 2 ).Last() ))
-            return string.Join( '\\', directoryParts.SkipLast( 3 ) );
-        // Old structure: packages\{packageName}.{version}\lib\{targetFramework}\{packageName}.dll
-        if (OldNugetVersionRegex().IsMatch( directoryParts.SkipLast( 2 ).Last() ))
-            return string.Join( '\\', directoryParts.SkipLast( 2 ) );
+        // packages\{packageName}\{version}\lib\{targetFramework}\{packageName}.dll
+        // packages\{packageName}\{version}\runtimes\{runtime-identifier}\lib\{targetFramework}\{packageName}.dll
+        // packages\{packageName}\{version}\lib\{targetFramework}\{culture}\{packageName}.dll
+        var index = Array.FindIndex(directoryParts, x => NewNugetVersionRegex().IsMatch(x));
+        if (index > -1)
+            return string.Join('\\', directoryParts.Take(index + 1) );
+        // packages\{packageName}.{version}\lib\{targetFramework}\{packageName}.dll
+        index = Array.FindIndex(directoryParts, x => OldNugetVersionRegex().IsMatch(x));
+        if (index > -1)
+            return string.Join('\\', directoryParts.Take(index + 1));
         return null;
     }
 
     [GeneratedRegex( @"^\d+.\d+.\d+\S*$", RegexOptions.None )]
     private static partial Regex NewNugetVersionRegex();
 
-    [GeneratedRegex( @"^(.*).(\d+.\d+.\d+\S*)$" )]
+    [GeneratedRegex( @"^\S+\.\d+.\d+.\d+\S*$" )]
     private static partial Regex OldNugetVersionRegex();
 }

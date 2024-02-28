@@ -13,26 +13,16 @@ internal class LocalPackageLicenseResolver : IFileVersionInfoLicenseResolver
 {
     public bool CanResolve( FileVersionInfo fileVersionInfo ) => true;
 
-    public Task<string> Resolve( FileVersionInfo fileVersionInfo )
+    public async Task<string> Resolve( FileVersionInfo fileVersionInfo )
     {
-        return Task.FromResult( Resolve( fileVersionInfo.FileName ) );
-    }
-
-    private string Resolve( string assemblyPath )
-    {
-        var packagePath = Utils.GetPackagePath( assemblyPath );
-        if (packagePath != null)
-        {
-            return Directory.EnumerateFiles( packagePath, "license.txt", new EnumerationOptions
-            {
-                MatchCasing = MatchCasing.CaseInsensitive,
-                RecurseSubdirectories = false
-            } ).FirstOrDefault();
-        }
-        return Directory.EnumerateFiles( Path.GetDirectoryName( assemblyPath ), "license.txt", new EnumerationOptions
+        var directoryPath = Utils.GetPackagePath( fileVersionInfo.FileName ) ?? Path.GetDirectoryName( fileVersionInfo.FileName );
+        var licensePath = Directory.EnumerateFiles( directoryPath, "license.*", new EnumerationOptions
         {
             MatchCasing = MatchCasing.CaseInsensitive,
             RecurseSubdirectories = false
-        } ).FirstOrDefault();
+        } ).FirstOrDefault( x => x.EndsWith( "\\license.txt", StringComparison.OrdinalIgnoreCase ) || x.EndsWith( "\\license.md", StringComparison.OrdinalIgnoreCase ) );
+        if (licensePath == null)
+            return null;
+        return await File.ReadAllTextAsync( licensePath );
     }
 }
