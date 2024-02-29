@@ -11,18 +11,23 @@ namespace DotnetThirdPartyNotices.LicenseResolvers;
 
 internal class LocalPackageLicenseResolver : IFileVersionInfoLicenseResolver
 {
-    public bool CanResolve( FileVersionInfo fileVersionInfo ) => true;
+    public bool CanResolve( FileVersionInfo fileVersionInfo ) => GetLicensePath(fileVersionInfo) != null;
 
-    public async Task<string> Resolve( FileVersionInfo fileVersionInfo )
+    public async Task<string> Resolve(FileVersionInfo fileVersionInfo)
+    {
+        var licensePath = GetLicensePath(fileVersionInfo);
+        if (licensePath == null)
+            return null;
+        return await File.ReadAllTextAsync( licensePath );
+    }
+
+    private string GetLicensePath( FileVersionInfo fileVersionInfo )
     {
         var directoryPath = Utils.GetPackagePath( fileVersionInfo.FileName ) ?? Path.GetDirectoryName( fileVersionInfo.FileName );
-        var licensePath = Directory.EnumerateFiles( directoryPath, "license.*", new EnumerationOptions
+        return Directory.EnumerateFiles( directoryPath, "license.*", new EnumerationOptions
         {
             MatchCasing = MatchCasing.CaseInsensitive,
             RecurseSubdirectories = false
         } ).FirstOrDefault( x => x.EndsWith( "\\license.txt", StringComparison.OrdinalIgnoreCase ) || x.EndsWith( "\\license.md", StringComparison.OrdinalIgnoreCase ) );
-        if (licensePath == null)
-            return null;
-        return await File.ReadAllTextAsync( licensePath );
     }
 }

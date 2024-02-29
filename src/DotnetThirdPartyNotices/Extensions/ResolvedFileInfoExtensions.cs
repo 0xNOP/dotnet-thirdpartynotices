@@ -64,7 +64,7 @@ internal static class ResolvedFileInfoExtensions
         if (resolvedFileInfo.NuSpec != null)
             license = await ResolveLicense(resolvedFileInfo.NuSpec);
 
-        return license ?? await ResolveLicenseFromFileVersionInfo(resolvedFileInfo.VersionInfo);
+        return license ?? await ResolveLicense(resolvedFileInfo.VersionInfo);
     }
 
     private static readonly Dictionary<string, string> LicenseCache = new();
@@ -119,6 +119,17 @@ internal static class ResolvedFileInfoExtensions
         LicenseCache[nuSpec.Id] = license2;
         LicenseCache[nuSpec.ProjectUrl] = license2;
         return license2;
+    }
+
+    private static async Task<string> ResolveLicense(FileVersionInfo fileVersionInfo)
+    {
+        if (LicenseCache.ContainsKey(fileVersionInfo.FileName))
+            return LicenseCache[fileVersionInfo.FileName];
+        var license = await ResolveLicenseFromFileVersionInfo(fileVersionInfo);
+        if(license == null)
+            return null;
+        LicenseCache[fileVersionInfo.FileName] = license;
+        return license;
     }
 
     private static async Task<string> ResolveLicenseFromLicenseUri(Uri licenseUri)
