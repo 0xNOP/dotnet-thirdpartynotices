@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -62,15 +63,16 @@ internal static class ResolvedFileInfoExtensions
         if (resolvedFileInfo == null) throw new ArgumentNullException(nameof(resolvedFileInfo));
         string license = null;
         if (resolvedFileInfo.NuSpec != null)
-            license = await ResolveLicense(resolvedFileInfo.NuSpec);
+            license = await ResolveLicenseFromNuspec(resolvedFileInfo);
 
         return license ?? await ResolveLicense(resolvedFileInfo.VersionInfo);
     }
 
     private static readonly Dictionary<string, string> LicenseCache = new();
 
-    private static async Task<string> ResolveLicense(NuSpec nuSpec)
+    private static async Task<string> ResolveLicenseFromNuspec( ResolvedFileInfo resolvedFileInfo )
     {
+        var nuSpec = resolvedFileInfo.NuSpec;
         if (LicenseCache.ContainsKey(nuSpec.Id))
             return LicenseCache[nuSpec.Id];
         
@@ -78,11 +80,24 @@ internal static class ResolvedFileInfoExtensions
         var repositoryUrl = nuSpec.RepositoryUrl;
         var projectUrl = nuSpec.ProjectUrl;
 
-        // Try to get the license from license url
-        if (!string.IsNullOrEmpty(licenseUrl))
+        if (!string.IsNullOrEmpty(nuSpec.LicenseRelativePath))
         {
-            if (LicenseCache.ContainsKey(licenseUrl))
-                return LicenseCache[licenseUrl];
+            if (LicenseCache.TryGetValue(nuSpec.LicenseRelativePath, out string value))
+                return value;
+            var license3 = await ResolveLicenseFromRelativePath(resolvedFileInfo.VersionInfo, nuSpec.LicenseRelativePath);
+            if (license3 != null)
+            {
+                LicenseCache[nuSpec.Id] = license3;
+                LicenseCache[nuSpec.LicenseRelativePath] = license3;
+                return license3;
+            }
+        }
+
+        // Try to get the license from license url
+        if (!string.IsNullOrEmpty(nuSpec.LicenseUrl))
+        {
+            if (LicenseCache.TryGetValue(licenseUrl, out string value))
+                return value;
 
             var license = await ResolveLicenseFromLicenseUri(new Uri(nuSpec.LicenseUrl));
             if (license != null)
@@ -96,8 +111,8 @@ internal static class ResolvedFileInfoExtensions
         // Try to get the license from repository url
         if (!string.IsNullOrEmpty(repositoryUrl))
         {
-            if (LicenseCache.ContainsKey(repositoryUrl ))
-                return LicenseCache[repositoryUrl];
+            if (LicenseCache.TryGetValue(repositoryUrl, out string value))
+                return value;
             var license = await ResolveLicenseFromRepositoryUri(new Uri(repositoryUrl));
             if (license != null)
             {
@@ -108,17 +123,21 @@ internal static class ResolvedFileInfoExtensions
         }
 
         // Otherwise try to get the license from project url
-        if (string.IsNullOrEmpty(projectUrl)) return null;
+        if (string.IsNullOrEmpty(projectUrl))
+        {
+            if (LicenseCache.TryGetValue(projectUrl, out string value))
+                return value;
 
-        if (LicenseCache.ContainsKey(projectUrl))
-            return LicenseCache[projectUrl];
+            var license2 = await ResolveLicenseFromProjectUri(new Uri(projectUrl));
+            if (license2 != null)
+            {
+                LicenseCache[nuSpec.Id] = license2;
+                LicenseCache[nuSpec.ProjectUrl] = license2;
+                return license2;
+            }
+        }
 
-        var license2 = await ResolveLicenseFromProjectUri(new Uri(projectUrl));
-        if (license2 == null) return null;
-
-        LicenseCache[nuSpec.Id] = license2;
-        LicenseCache[nuSpec.ProjectUrl] = license2;
-        return license2;
+        return null;
     }
 
     private static async Task<string> ResolveLicense(FileVersionInfo fileVersionInfo)
@@ -158,6 +177,15 @@ internal static class ResolvedFileInfoExtensions
 
         // Finally, if no license uri can be found despite all the redirects, try to blindly get it
         return await repositoryUri.GetPlainText();
+    }
+
+    private static async Task<string> ResolveLicenseFromRelativePath(FileVersionInfo fileVersionInfo, string relativePath)
+    {
+        var packagePath = Utils.GetPackagePath( fileVersionInfo.FileName );
+        var licenseFullPath = Path.Combine( packagePath, relativePath );
+        if (!licenseFullPath.EndsWith(".txt") && !licenseFullPath.EndsWith( ".md" ) || !File.Exists( licenseFullPath ))
+            return null; 
+        return await File.ReadAllTextAsync( licenseFullPath );
     }
 
     private static async Task<string> ResolveLicenseFromProjectUri(Uri projectUri)

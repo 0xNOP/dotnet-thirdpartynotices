@@ -14,6 +14,7 @@ public record NuSpec
     public string LicenseUrl { get; init; }
     public string ProjectUrl { get; init; }
     public string RepositoryUrl { get; init; }
+    public string LicenseRelativePath { get; init; }
 
     private static NuSpec FromTextReader(TextReader streamReader)
     {
@@ -31,7 +32,8 @@ public record NuSpec
             Version = metadata.Element(ns + "version")?.Value,
             LicenseUrl = metadata.Element(ns + "licenseUrl")?.Value,
             ProjectUrl = metadata.Element(ns + "projectUrl")?.Value,
-            RepositoryUrl = metadata.Element(ns + "repository")?.Attribute("url")?.Value
+            RepositoryUrl = metadata.Element(ns + "repository")?.Attribute("url")?.Value,
+            LicenseRelativePath = metadata.Elements(ns + "license").Where(x => x.Attribute("type")?.Value == "file").FirstOrDefault()?.Value
         };
     }
 
