@@ -29,11 +29,11 @@ internal static partial class Utils
         // packages\{packageName}\{version}\lib\{targetFramework}\{packageName}.dll
         // packages\{packageName}\{version}\runtimes\{runtime-identifier}\lib\{targetFramework}\{packageName}.dll
         // packages\{packageName}\{version}\lib\{targetFramework}\{culture}\{packageName}.dll
-        var index = Array.FindIndex(directoryParts, x => NewNugetVersionRegex().IsMatch(x));
+        var index = Array.FindLastIndex( directoryParts, x => NewNugetVersionRegex().IsMatch(x));
         if (index > -1)
             return string.Join('\\', directoryParts.Take(index + 1) );
         // packages\{packageName}.{version}\lib\{targetFramework}\{packageName}.dll
-        index = Array.FindIndex(directoryParts, x => OldNugetVersionRegex().IsMatch(x));
+        index = Array.FindLastIndex(directoryParts, x => OldNugetVersionRegex().IsMatch(x));
         if (index > -1)
             return string.Join('\\', directoryParts.Take(index + 1));
         return null;
