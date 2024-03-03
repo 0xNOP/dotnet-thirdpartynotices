@@ -14,6 +14,7 @@ public record NuSpec
     public string LicenseUrl { get; init; }
     public string ProjectUrl { get; init; }
     public string RepositoryUrl { get; init; }
+    public string LicenseRelativePath { get; init; }
 
     private static NuSpec FromTextReader(TextReader streamReader)
     {
@@ -31,25 +32,38 @@ public record NuSpec
             Version = metadata.Element(ns + "version")?.Value,
             LicenseUrl = metadata.Element(ns + "licenseUrl")?.Value,
             ProjectUrl = metadata.Element(ns + "projectUrl")?.Value,
-            RepositoryUrl = metadata.Element(ns + "repository")?.Attribute("url")?.Value
+            RepositoryUrl = metadata.Element(ns + "repository")?.Attribute("url")?.Value,
+            LicenseRelativePath = metadata.Elements(ns + "license").Where(x => x.Attribute("type")?.Value == "file").FirstOrDefault()?.Value
         };
     }
 
     public static NuSpec FromFile(string fileName)
     {
-        if (fileName == null) throw new ArgumentNullException(nameof(fileName));
+        ArgumentNullException.ThrowIfNull( fileName );
         using var xmlReader = new StreamReader(fileName);
         return FromTextReader(xmlReader);
     }
 
     public static NuSpec FromNupkg(string fileName)
     {
-        if (fileName == null) throw new ArgumentNullException(nameof(fileName));
+        ArgumentNullException.ThrowIfNull( fileName );
         using var zipToCreate = new FileStream(fileName, FileMode.Open, FileAccess.Read);
         using var zip = new ZipArchive(zipToCreate, ZipArchiveMode.Read);
         var zippedNuspec = zip.Entries.Single(e => e.FullName.EndsWith(".nuspec"));
         using var stream = zippedNuspec.Open();
         using var streamReader = new StreamReader(stream);
         return FromTextReader(streamReader);
+    }
+
+    public static NuSpec FromAssemble(string assemblePath)
+    {
+        if (assemblePath == null) throw new ArgumentNullException(nameof(assemblePath));
+        var nuspec = Utils.GetNuspecPath(assemblePath);
+        if (nuspec != null)
+            return FromFile( nuspec );
+        var nupkg = Utils.GetNupkgPath(assemblePath);
+        if(nupkg != null)
+            return FromNupkg(nupkg);
+        return null;
     }
 }

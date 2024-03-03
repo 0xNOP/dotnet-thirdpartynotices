@@ -61,13 +61,7 @@ internal static class ProjectExtensions
                 
             if (item.GetMetadataValue("ResolvedFrom") == "{HintPathFromItem}" && item.GetMetadataValue("HintPath").StartsWith("..\\packages"))
             {
-                var packagePath = Utils.GetPackagePathFromAssemblyPath(assemblyPath);
-                if (packagePath == null)
-                    throw new ApplicationException($"Cannot find package path from assembly path ({assemblyPath})");
-                    
-                var nuPkgFileName = Directory.GetFiles(packagePath, "*.nupkg", SearchOption.TopDirectoryOnly).Single();
-
-                var nuSpec = NuSpec.FromNupkg(nuPkgFileName);
+                var nuSpec = NuSpec.FromAssemble(assemblyPath) ?? throw new ApplicationException( $"Cannot find package path from assembly path ({assemblyPath})" );
                 resolvedFileInfo.NuSpec = nuSpec;
                 resolvedFileInfos.Add(resolvedFileInfo);
             }
@@ -97,14 +91,7 @@ internal static class ProjectExtensions
                 // Skip if it's not a NuGet package
                 continue;
             }
-
-            var packagePath = Utils.GetPackagePathFromAssemblyPath(assemblyPath);
-            if (packagePath == null)
-                throw new ApplicationException($"Cannot find package path from assembly path ({assemblyPath})");
-
-            // TODO: don't think this is reliable because I'm not sure if .nuspec will always be there, or if it will always be named tha way
-            var nuSpecFilePath = Path.Combine(packagePath, $"{packageName}.nuspec"); // Directory.GetFiles(packageFolder, "*.nuspec", SearchOption.TopDirectoryOnly).SingleOrDefault();
-            var nuSpec = NuSpec.FromFile(nuSpecFilePath);
+            var nuSpec = NuSpec.FromAssemble( assemblyPath ) ?? throw new ApplicationException( $"Cannot find package path from assembly path ({assemblyPath})" ); ;
 
             var relativePath = item.GetMetadataValue("RelativePath");
             var resolvedFileInfo = new ResolvedFileInfo

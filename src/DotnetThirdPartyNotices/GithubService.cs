@@ -34,7 +34,10 @@ internal class GithubService : IDisposable
         repositoryPath = repositoryPath.TrimEnd('/');
         if (repositoryPath.EndsWith(".git"))
             repositoryPath = repositoryPath[..^4];
-        var json = await _httpClient.GetStringAsync($"repos{repositoryPath}/license");
+        var response = await _httpClient.GetAsync($"repos{repositoryPath}/license");
+        if (!response.IsSuccessStatusCode)
+            return null;
+        var json = await response.Content.ReadAsStringAsync();
         var jsonDocument = JsonDocument.Parse(json);
 
         var rootElement = jsonDocument.RootElement;
