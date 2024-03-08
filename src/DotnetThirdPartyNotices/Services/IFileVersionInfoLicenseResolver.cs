@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace DotnetThirdPartyNotices.LicenseResolvers.Interfaces;
+namespace DotnetThirdPartyNotices.Services;
 
 internal interface IFileVersionInfoLicenseResolver : ILicenseResolver
 {

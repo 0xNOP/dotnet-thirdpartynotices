@@ -8,4 +8,5 @@ internal class ResolvedFileInfo
     public string RelativeOutputPath { get; set; }
     public FileVersionInfo VersionInfo { get; set; }
     public NuSpec NuSpec { get; set; }
+    public string PackagePath { get; set; }
 }

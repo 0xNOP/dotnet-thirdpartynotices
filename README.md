@@ -12,24 +12,25 @@ dotnet tool install -g DotnetThirdPartyNotices
 
 ## Get started
 
-Go inside the project directory and run:
+Go inside the project or solution directory and run:
 
 ```
 dotnet-thirdpartynotices
-```
-
-To change the name of the file that will be generated:
-
-```
-dotnet-thirdpartynotices --output-filename "third party notices.txt"
 ```
 
 If your project is in a different directory:
 
 ```
 dotnet-thirdpartynotices <project directory path>
-dotnet-thirdpartynotices --output-filename "third party notices.txt" <project directory path>
 ```
+
+Options:
+
+- `--output-filename` allow to change output filename
+- `--copy-to-outdir` allow to copy output file to output directory in Release configuration
+- `--filter` allow to use regex to filter project files
+
+Note that if you use the solution folder and don't use `--copy-to-outdir` then licenses from all projects will be merged to single file.
 
 ## How it works
 

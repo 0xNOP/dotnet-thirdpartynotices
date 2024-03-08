@@ -3,9 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
-using DotnetThirdPartyNotices.LicenseResolvers.Interfaces;
 
-namespace DotnetThirdPartyNotices.LicenseResolvers;
+namespace DotnetThirdPartyNotices.Services;
 
 internal class NetFrameworkLicenseResolver : ILicenseUriLicenseResolver, IFileVersionInfoLicenseResolver
 {
