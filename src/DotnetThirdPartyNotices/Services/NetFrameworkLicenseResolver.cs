@@ -22,7 +22,7 @@ internal class NetFrameworkLicenseResolver : ILicenseUriLicenseResolver, IFileVe
             return _licenseContent;
 
         var executingAssembly = Assembly.GetExecutingAssembly();
-        await using var stream = executingAssembly.GetManifestResourceStream(typeof(Utils), "dotnet_library_license.txt");
+        await using var stream = executingAssembly.GetManifestResourceStream(typeof(Program), "dotnet_library_license.txt");
         using var streamReader = new StreamReader(stream);
         _licenseContent = await streamReader.ReadToEndAsync();
         return _licenseContent;
