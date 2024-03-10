@@ -1,4 +1,4 @@
-﻿namespace DotnetThirdPartyNotices;
+﻿namespace DotnetThirdPartyNotices.Models;
 
 internal static class TargetFrameworkIdentifiers
 {

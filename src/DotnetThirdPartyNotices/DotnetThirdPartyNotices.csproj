@@ -3,18 +3,25 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<Nullable>enable</Nullable>
     <LangVersion>default</LangVersion>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dotnet-thirdpartynotices</ToolCommandName>
     <PackageId>DotnetThirdPartyNotices</PackageId>
     <Description>A .NET tool to generate file with third party legal notices</Description>
-    <PackageVersion>0.2.8</PackageVersion>
+    <PackageVersion>0.2.9</PackageVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/bugproof/DotnetThirdPartyNotices</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/bugproof/DotnetThirdPartyNotices</PackageProjectUrl>
     <RootNamespace>DotnetThirdPartyNotices</RootNamespace>
     <AssemblyName>DotnetThirdPartyNotices</AssemblyName>
     <NoWarn>1591</NoWarn>
+    <Authors>bugproof</Authors>
+    <Copyright>bugproof</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,12 +31,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Build" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Build.Locator" />
-    <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build.Tasks.Core" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="runtime" />
-    <PackageReference Include="Serilog" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.Console" />
-    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="System.CommandLine.Hosting" />
   </ItemGroup>
 
 </Project>
