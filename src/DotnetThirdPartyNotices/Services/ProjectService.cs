@@ -50,12 +50,11 @@ internal class ProjectService(ILogger<ProjectService> logger, ILocalPackageServi
                 SourcePath = assemblyPath,
                 VersionInfo = versionInfo,
                 RelativeOutputPath = Path.GetFileName(assemblyPath),
-                PackagePath = packagePath
+                PackagePath = packagePath,
+                NuSpec = item.GetMetadataValue("ResolvedFrom") == "{HintPathFromItem}" && item.GetMetadataValue("HintPath").StartsWith("..\\packages")
+                    ? (localPackageService.GetNuSpecFromPackagePath(packagePath) ?? throw new ApplicationException($"Cannot find package path from assembly path ({assemblyPath})"))
+                    : null
             };
-            if (item.GetMetadataValue("ResolvedFrom") == "{HintPathFromItem}" && item.GetMetadataValue("HintPath").StartsWith("..\\packages"))
-            {
-                resolvedFileInfo.NuSpec = localPackageService.GetNuSpecFromPackagePath(packagePath) ?? throw new ApplicationException($"Cannot find package path from assembly path ({assemblyPath})");
-            }
             resolvedFileInfos.Add(resolvedFileInfo);
         }
 

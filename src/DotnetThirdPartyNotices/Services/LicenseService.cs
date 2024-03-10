@@ -12,10 +12,10 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
 {
     private static readonly Dictionary<string, string> LicenseCache = [];
 
-    public async Task<string> ResolveFromResolvedFileInfo(ResolvedFileInfo resolvedFileInfo)
+    public async Task<string?> ResolveFromResolvedFileInfo(ResolvedFileInfo resolvedFileInfo)
     {
         ArgumentNullException.ThrowIfNull(resolvedFileInfo);
-        if (resolvedFileInfo.NuSpec != null && LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.Id, out string value))
+        if (resolvedFileInfo.NuSpec != null && LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.Id, out string? value))
             return value;
         return (await ResolveFromLicenseRelativePathAsync(resolvedFileInfo))
             ?? (await ResolveFromLicenseUrlAsync(resolvedFileInfo, false))
@@ -29,11 +29,11 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
             ?? (await ResolveFromProjectUrlAsync(resolvedFileInfo, true));
     }
 
-    private async Task<string> ResolveFromPackagePathAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromPackagePathAsync(ResolvedFileInfo resolvedFileInfo)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.PackagePath))
             return null;
-        if (LicenseCache.TryGetValue(resolvedFileInfo.PackagePath, out string value))
+        if (LicenseCache.TryGetValue(resolvedFileInfo.PackagePath, out string? value))
             return value;
         var licensePath = Directory.EnumerateFiles(resolvedFileInfo.PackagePath, "license.*", new EnumerationOptions
         {
@@ -49,12 +49,14 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         return license;
     }
 
-    private async Task<string> ResolveFromAssemblyPathAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromAssemblyPathAsync(ResolvedFileInfo resolvedFileInfo)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.SourcePath))
             return null;
         var assemblyPath = Path.GetDirectoryName(resolvedFileInfo.SourcePath);
-        if (LicenseCache.TryGetValue(assemblyPath, out string value))
+        if(assemblyPath == null)
+            return null;
+        if (LicenseCache.TryGetValue(assemblyPath, out string? value))
             return value;
         var licensePath = Directory.EnumerateFiles(assemblyPath, "license.*", new EnumerationOptions
         {
@@ -68,31 +70,32 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         return license;
     }
 
-    private async Task<string> ResolveFromFileVersionInfoAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromFileVersionInfoAsync(ResolvedFileInfo resolvedFileInfo)
     {
-        var fileVersionInfo = resolvedFileInfo.VersionInfo;
-        if (LicenseCache.TryGetValue(fileVersionInfo.FileName, out string value))
+        if(resolvedFileInfo.VersionInfo == null)
+            return null;
+        if (LicenseCache.TryGetValue(resolvedFileInfo.VersionInfo.FileName, out string? value))
             return value;
         foreach (var resolver in fileVersionInfoLicenseResolvers)
         {
-            if (!resolver.CanResolve(fileVersionInfo))
+            if (!resolver.CanResolve(resolvedFileInfo.VersionInfo))
                 continue;
-            var license = await resolver.Resolve(fileVersionInfo);
+            var license = await resolver.Resolve(resolvedFileInfo.VersionInfo);
             if (license != null)
             {
-                LicenseCache[fileVersionInfo.FileName] = license;
+                LicenseCache[resolvedFileInfo.VersionInfo.FileName] = license;
                 return license;
             }
         }
         return null;
     }
 
-    private async Task<string> ResolveFromLicenseRelativePathAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromLicenseRelativePathAsync(ResolvedFileInfo resolvedFileInfo)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.PackagePath) || string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.LicenseRelativePath))
             return null;
         var licenseFullPath = Path.Combine(resolvedFileInfo.PackagePath, resolvedFileInfo.NuSpec.LicenseRelativePath);
-        if (LicenseCache.TryGetValue(licenseFullPath, out string value))
+        if (LicenseCache.TryGetValue(licenseFullPath, out string? value))
             return value;
         if (!licenseFullPath.EndsWith(".txt") && !licenseFullPath.EndsWith(".md") || !File.Exists(licenseFullPath))
             return null;
@@ -104,11 +107,11 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         return license;
     }
 
-    private async Task<string> ResolveFromProjectUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
+    private async Task<string?> ResolveFromProjectUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.ProjectUrl))
             return null;
-        if (LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.ProjectUrl, out string value))
+        if (LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.ProjectUrl, out string? value))
             return value;
         if (!Uri.TryCreate(resolvedFileInfo.NuSpec.ProjectUrl, UriKind.Absolute, out var uri))
             return null;
@@ -123,7 +126,7 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         return license;
     }
 
-    private async Task<string> ResolveFromUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers)
+    private async Task<string?> ResolveFromUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers)
     {
         foreach (var resolver in urlLicenseResolvers)
         {
@@ -136,7 +139,7 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         return null;
     }
 
-    private async Task<string> ResolveFromFinalUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers)
+    private async Task<string?> ResolveFromFinalUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers)
     {
         using var httpClient = httpClientFactory.CreateClient();
         var httpResponseMessage = await httpClient.GetAsync(uri);
@@ -161,16 +164,16 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
             }
         }
         // Finally, if no license uri can be found despite all the redirects, try to blindly get it
-        if (httpResponseMessage.Content.Headers.ContentType.MediaType != "text/plain")
+        if (httpResponseMessage.Content.Headers.ContentType?.MediaType != "text/plain")
             return null;
         return await httpResponseMessage.Content.ReadAsStringAsync();
     }
 
-    private async Task<string> ResolveFromRepositoryUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
+    private async Task<string?> ResolveFromRepositoryUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.RepositoryUrl))
             return null;
-        if (LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.RepositoryUrl, out string value))
+        if (LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.RepositoryUrl, out string? value))
             return value;
         if (!Uri.TryCreate(resolvedFileInfo.NuSpec.RepositoryUrl, UriKind.Absolute, out var uri))
             return null;
@@ -185,11 +188,11 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         return license;
     }
 
-    private async Task<string> ResolveFromLicenseUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
+    private async Task<string?> ResolveFromLicenseUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.LicenseUrl))
             return null;
-        if (LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.LicenseUrl, out string value))
+        if (LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.LicenseUrl, out string? value))
             return value;
         if (!Uri.TryCreate(resolvedFileInfo.NuSpec.LicenseUrl, UriKind.Absolute, out var uri))
             return null;

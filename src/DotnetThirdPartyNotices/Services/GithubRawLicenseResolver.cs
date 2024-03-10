@@ -1,14 +1,10 @@
-﻿using System;
-using System.Net.Http;
-using System.Threading.Tasks;
-
-namespace DotnetThirdPartyNotices.Services;
+﻿namespace DotnetThirdPartyNotices.Services;
 
 internal class GithubRawLicenseResolver(IHttpClientFactory httpClientFactory) : ILicenseUriLicenseResolver
 {
     public bool CanResolve(Uri uri) => uri.Host == "github.com";
 
-    public async Task<string> Resolve(Uri uri)
+    public async Task<string?> Resolve(Uri uri)
     {
         var uriBuilder = new UriBuilder(uri) { Host = "raw.githubusercontent.com" };
         uriBuilder.Path = uriBuilder.Path.Replace("/blob", string.Empty);
@@ -17,7 +13,7 @@ internal class GithubRawLicenseResolver(IHttpClientFactory httpClientFactory) : 
         httpClient.DefaultRequestHeaders.Add("User-Agent", "DotnetLicense");
         var httpResponseMessage = await httpClient.GetAsync(uriBuilder.Uri);
         if (!httpResponseMessage.IsSuccessStatusCode
-            || httpResponseMessage.Content.Headers.ContentType.MediaType != "text/plain")
+            || httpResponseMessage.Content.Headers.ContentType?.MediaType != "text/plain")
             return null;
         return await httpResponseMessage.Content.ReadAsStringAsync();
     }

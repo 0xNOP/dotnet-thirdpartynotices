@@ -10,7 +10,7 @@ internal class GithubRepositoryLicenseResolver(IHttpClientFactory httpClientFact
 {
     public bool CanResolve(Uri uri) => uri.Host == "github.com";
 
-    public async Task<string> Resolve(Uri licenseUri)
+    public async Task<string?> Resolve(Uri licenseUri)
     {
         var repositoryPath = licenseUri.AbsolutePath.TrimEnd('/');
         if (repositoryPath.EndsWith(".git"))
@@ -30,7 +30,7 @@ internal class GithubRepositoryLicenseResolver(IHttpClientFactory httpClientFact
         var rootElement = jsonDocument.RootElement;
         var encoding = rootElement.GetProperty("encoding").GetString();
         var content = rootElement.GetProperty("content").GetString();
-        if (encoding != "base64")
+        if (content == null || encoding != "base64")
             return content;
         var bytes = Convert.FromBase64String(content);
         return Encoding.UTF8.GetString(bytes);

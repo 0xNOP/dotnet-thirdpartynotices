@@ -3,6 +3,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<Nullable>enable</Nullable>
     <LangVersion>default</LangVersion>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dotnet-thirdpartynotices</ToolCommandName>

@@ -28,10 +28,10 @@ internal class ScanCommand : Command
 
     internal new class Handler(ILogger<Handler> logger, IProjectService projectService, ILicenseService licenseService) : ICommandHandler
     {
-        public string ScanDir { get; set; }
-        public string OutputFilename { get; set; }
+        public string? ScanDir { get; set; }
+        public string? OutputFilename { get; set; }
         public bool CopyToOutDir { get; set; }
-        public string Filter { get; set; }
+        public string? Filter { get; set; }
         public bool Merge { get; set; }
         private readonly Dictionary<string, List<ResolvedFileInfo>> _licenseContents = [];
         private readonly List<ResolvedFileInfo> _unresolvedFiles = [];
@@ -101,12 +101,14 @@ internal class ScanCommand : Command
             }
             stopWatch.Stop();
             logger.LogInformation("Project {ProjectName} resolved in {StopwatchElapsedMilliseconds}ms", Path.GetFileName(projectFilePath), stopWatch.ElapsedMilliseconds);
-            if (CopyToOutDir)
+            if (CopyToOutDir && !string.IsNullOrEmpty(ScanDir) && !string.IsNullOrEmpty(OutputFilename))
                 await GenerateOutputFileAsync(Path.Combine(ScanDir, project.GetPropertyValue("OutDir"), Path.GetFileName(OutputFilename)));
         }
 
-        private async Task GenerateOutputFileAsync(string outputFilePath)
+        private async Task GenerateOutputFileAsync(string? outputFilePath)
         {
+            if (outputFilePath == null)
+                return;
             logger.LogInformation("Resolved {LicenseContentsCount} licenses for {Sum}/{ResolvedFilesCount} files", _licenseContents.Count, _licenseContents.Values.Sum(v => v.Count), _licenseContents.Values.Sum(v => v.Count) + _unresolvedFiles.Count);
             logger.LogInformation("Unresolved files: {UnresolvedFilesCount}", _unresolvedFiles.Count);
             var stopWatch = new Stopwatch();
@@ -117,7 +119,7 @@ internal class ScanCommand : Command
                 var longestNameLen = 0;
                 foreach (var resolvedFileInfo in resolvedFileInfos)
                 {
-                    var strLen = resolvedFileInfo.RelativeOutputPath.Length;
+                    var strLen = resolvedFileInfo.RelativeOutputPath?.Length ?? 0;
                     if (strLen > longestNameLen)
                         longestNameLen = strLen;
                     stringBuilder.AppendLine(resolvedFileInfo.RelativeOutputPath);

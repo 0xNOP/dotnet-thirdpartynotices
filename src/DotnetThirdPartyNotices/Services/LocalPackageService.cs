@@ -10,8 +10,10 @@ namespace DotnetThirdPartyNotices.Services;
 
 public partial class LocalPackageService : ILocalPackageService
 {
-    public NuSpec GetNuSpecFromPackagePath(string path)
+    public NuSpec? GetNuSpecFromPackagePath(string? path)
     {
+        if (path == null)
+            return null;
         var nuspecPath = GetNuspecPathFromPackagePath(path);
         if (nuspecPath != null)
             return GetNuSpecFromNuspecPath(nuspecPath);
@@ -20,7 +22,7 @@ public partial class LocalPackageService : ILocalPackageService
             return GetNuSpecFromNupkgPath(nupkgPath);
         return null;
     }
-    public NuSpec GetNuSpecFromNupkgPath(string path)
+    public NuSpec? GetNuSpecFromNupkgPath(string? path)
     {
         if (path == null)
             return null;
@@ -32,7 +34,7 @@ public partial class LocalPackageService : ILocalPackageService
         return GetNuSpecFromStreamReader(streamReader);
     }
 
-    public NuSpec GetNuSpecFromNuspecPath(string path)
+    public NuSpec? GetNuSpecFromNuspecPath(string? path)
     {
         if (path == null)
             return null;
@@ -40,18 +42,21 @@ public partial class LocalPackageService : ILocalPackageService
         return GetNuSpecFromStreamReader(streamReader);
     }
 
-    public NuSpec GetNuSpecFromStreamReader(TextReader textReader)
+    public NuSpec? GetNuSpecFromStreamReader(TextReader? textReader)
     {
+        if (textReader == null)
+            return null;
         var xDocument = XDocument.Load(textReader);
         if (xDocument.Root == null) return null;
         var ns = xDocument.Root.GetDefaultNamespace();
-
         var metadata = xDocument.Root.Element(ns + "metadata");
-        if (metadata == null) return null;
-
-        return new NuSpec
+        if (metadata == null)
+            return null;
+        var id = metadata.Element(ns + "id")?.Value;
+        if (id == null)
+            return null;
+        return new NuSpec(id)
         {
-            Id = metadata.Element(ns + "id")?.Value,
             Version = metadata.Element(ns + "version")?.Value,
             LicenseUrl = metadata.Element(ns + "licenseUrl")?.Value,
             ProjectUrl = metadata.Element(ns + "projectUrl")?.Value,
@@ -61,23 +66,27 @@ public partial class LocalPackageService : ILocalPackageService
     }
 
 
-    public string GetNuspecPathFromPackagePath(string packagePath)
+    public string? GetNuspecPathFromPackagePath(string? packagePath)
     {
         return packagePath != null
             ? Directory.EnumerateFiles(packagePath, "*.nuspec", SearchOption.TopDirectoryOnly).FirstOrDefault()
             : null;
     }
 
-    public string GetNupkgPathFromPackagePath(string packagePath)
+    public string? GetNupkgPathFromPackagePath(string? packagePath)
     {
         return packagePath != null
             ? Directory.EnumerateFiles(packagePath, "*.nupkg", SearchOption.TopDirectoryOnly).FirstOrDefault()
             : null;
     }
 
-    public string GetPackagePathFromAssemblyPath(string assemblyPath)
+    public string? GetPackagePathFromAssemblyPath(string? assemblyPath)
     {
-        var directoryParts = Path.GetDirectoryName(assemblyPath).Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        if(assemblyPath == null)
+            return null;
+        var directoryParts = Path.GetDirectoryName(assemblyPath)?.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        if(directoryParts == null)
+            return null;
         // packages\{packageName}\{version}\lib\{targetFramework}\{packageName}.dll
         // packages\{packageName}\{version}\runtimes\{runtime-identifier}\lib\{targetFramework}\{packageName}.dll
         // packages\{packageName}\{version}\lib\{targetFramework}\{culture}\{packageName}.dll
