@@ -100,9 +100,9 @@ public partial class LocalPackageService : ILocalPackageService
         return null;
     }
 
-    [GeneratedRegex(@"^\d+.\d+.\d+\S*$", RegexOptions.None)]
+    [GeneratedRegex(@"^\d+.\d+.\d+\S*$", RegexOptions.None, 300)]
     private static partial Regex NewNugetVersionRegex();
 
-    [GeneratedRegex(@"^\S+\.\d+.\d+.\d+\S*$")]
+    [GeneratedRegex(@"^\S+\.\d+.\d+.\d+\S*$", RegexOptions.None, 300)]
     private static partial Regex OldNugetVersionRegex();
 }

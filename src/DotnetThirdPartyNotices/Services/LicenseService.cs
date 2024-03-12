@@ -1,14 +1,9 @@
 ﻿using DotnetThirdPartyNotices.Models;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace DotnetThirdPartyNotices.Services;
 
-internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUriLicenseResolvers, IEnumerable<IProjectUriLicenseResolver> projectUriLicenseResolvers, IEnumerable<IRepositoryUriLicenseResolver> repositoryUriLicenseResolvers, IEnumerable<IFileVersionInfoLicenseResolver> fileVersionInfoLicenseResolvers, IHttpClientFactory httpClientFactory) : ILicenseService
+internal partial class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUriLicenseResolvers, IEnumerable<IProjectUriLicenseResolver> projectUriLicenseResolvers, IEnumerable<IRepositoryUriLicenseResolver> repositoryUriLicenseResolvers, IEnumerable<IFileVersionInfoLicenseResolver> fileVersionInfoLicenseResolvers, IHttpClientFactory httpClientFactory) : ILicenseService
 {
     private static readonly Dictionary<string, string> LicenseCache = [];
 
@@ -29,20 +24,48 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
             ?? (await ResolveFromProjectUrlAsync(resolvedFileInfo, true));
     }
 
+    private static string? UnifyLicense(string? license)
+    {
+        if (string.IsNullOrWhiteSpace(license))
+            return null;
+        // remove empty lines from the beggining and at the end of the license
+        license = license.Trim('\r', '\n');
+        // unify new line characters
+        license = SingleLineFeedRegex().Replace(license, "\r\n");
+        license = SingleCarriageReturnRegex().Replace(license, "\r\n");
+        //remove control characters
+        license = ControlCharacterRegex().Replace(license, string.Empty);
+        //remove leading spaces in the whole license
+        var lines = license.Split('\n');
+        var leadingSpacesCount = lines.Aggregate((int?)null, (current, line) =>
+        {
+            if (current == 0 || string.IsNullOrWhiteSpace(line))
+                return current;
+            int spacesCount = line.TakeWhile(char.IsWhiteSpace).Count();
+            return current == null ? spacesCount : Math.Min(spacesCount, current.Value);
+        });
+        if (leadingSpacesCount > 0)
+            license = string.Join('\n', lines.Select(x => x.Length == 0 ? x : x[Math.Min(x.Length, leadingSpacesCount.Value)..]));
+        return license;
+    }
+
     private async Task<string?> ResolveFromPackagePathAsync(ResolvedFileInfo resolvedFileInfo)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.PackagePath))
             return null;
         if (LicenseCache.TryGetValue(resolvedFileInfo.PackagePath, out string? value))
             return value;
-        var licensePath = Directory.EnumerateFiles(resolvedFileInfo.PackagePath, "license.*", new EnumerationOptions
+        var licensePath = Directory.EnumerateFiles(resolvedFileInfo.PackagePath, "*.*", new EnumerationOptions
         {
             MatchCasing = MatchCasing.CaseInsensitive,
             RecurseSubdirectories = false
-        }).FirstOrDefault(x => x.EndsWith("\\license.txt", StringComparison.OrdinalIgnoreCase) || x.EndsWith("\\license.md", StringComparison.OrdinalIgnoreCase));
+        }).FirstOrDefault(LicenseFileRegex().IsMatch);
         if (licensePath == null)
             return null;
         var license = await File.ReadAllTextAsync(licensePath);
+        license = UnifyLicense(license);
+        if (license == null)
+            return null;
         if (resolvedFileInfo.NuSpec != null)
             LicenseCache[resolvedFileInfo.NuSpec.Id] = license;
         LicenseCache[resolvedFileInfo.PackagePath] = license;
@@ -53,20 +76,25 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.SourcePath))
             return null;
-        var assemblyPath = Path.GetDirectoryName(resolvedFileInfo.SourcePath);
-        if(assemblyPath == null)
-            return null;
-        if (LicenseCache.TryGetValue(assemblyPath, out string? value))
+        if (LicenseCache.TryGetValue(resolvedFileInfo.SourcePath, out string? value))
             return value;
-        var licensePath = Directory.EnumerateFiles(assemblyPath, "license.*", new EnumerationOptions
+        var directoryPath = Path.GetDirectoryName(resolvedFileInfo.SourcePath);
+        if(directoryPath == null)
+            return null;
+        var fileName = Path.GetFileNameWithoutExtension(resolvedFileInfo.SourcePath) ?? string.Empty;
+        Regex regex = new($"\\\\(|{Regex.Escape(fileName)}[+-_])license\\.(txt|md)$", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(300));
+        var licensePath = Directory.EnumerateFiles(directoryPath, "*.*", new EnumerationOptions
         {
             MatchCasing = MatchCasing.CaseInsensitive,
             RecurseSubdirectories = false
-        }).FirstOrDefault(x => x.EndsWith("\\license.txt", StringComparison.OrdinalIgnoreCase) || x.EndsWith("\\license.md", StringComparison.OrdinalIgnoreCase));
+        }).FirstOrDefault(regex.IsMatch);
         if (licensePath == null)
             return null;
         var license = await File.ReadAllTextAsync(licensePath);
-        LicenseCache[assemblyPath] = license;
+        license = UnifyLicense(license);
+        if (license == null)
+            return null;
+        LicenseCache[directoryPath] = license;
         return license;
     }
 
@@ -81,6 +109,7 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
             if (!resolver.CanResolve(resolvedFileInfo.VersionInfo))
                 continue;
             var license = await resolver.Resolve(resolvedFileInfo.VersionInfo);
+            license = UnifyLicense(license);
             if (license != null)
             {
                 LicenseCache[resolvedFileInfo.VersionInfo.FileName] = license;
@@ -100,8 +129,10 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         if (!licenseFullPath.EndsWith(".txt") && !licenseFullPath.EndsWith(".md") || !File.Exists(licenseFullPath))
             return null;
         var license = await File.ReadAllTextAsync(licenseFullPath);
-        if (string.IsNullOrEmpty(license))
+        license = UnifyLicense(license);
+        if (license == null)
             return null;
+        license = license.Trim();
         LicenseCache[resolvedFileInfo.NuSpec.Id] = license;
         LicenseCache[licenseFullPath] = license;
         return license;
@@ -118,11 +149,11 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         var license = useFinalUrl
             ? await ResolveFromFinalUrlAsync(uri, projectUriLicenseResolvers)
             : await ResolveFromUrlAsync(uri, projectUriLicenseResolvers);
-        if (license != null)
-        {
-            LicenseCache[resolvedFileInfo.NuSpec.Id] = license;
-            LicenseCache[resolvedFileInfo.NuSpec.ProjectUrl] = license;
-        }
+        license = UnifyLicense(license);
+        if (license == null)
+            return null;
+        LicenseCache[resolvedFileInfo.NuSpec.Id] = license;
+        LicenseCache[resolvedFileInfo.NuSpec.ProjectUrl] = license;
         return license;
     }
 
@@ -133,6 +164,7 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
             if (!resolver.CanResolve(uri))
                 continue;
             var license = await resolver.Resolve(uri);
+            license = UnifyLicense(license);
             if (license != null)
                 return license;
         }
@@ -159,6 +191,7 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
                 if (!resolver.CanResolve(httpResponseMessage.RequestMessage.RequestUri))
                     continue;
                 var license = await resolver.Resolve(httpResponseMessage.RequestMessage.RequestUri);
+                license = UnifyLicense(license);
                 if (license != null)
                     return license;
             }
@@ -166,7 +199,8 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         // Finally, if no license uri can be found despite all the redirects, try to blindly get it
         if (httpResponseMessage.Content.Headers.ContentType?.MediaType != "text/plain")
             return null;
-        return await httpResponseMessage.Content.ReadAsStringAsync();
+        var license2 = await httpResponseMessage.Content.ReadAsStringAsync();
+        return UnifyLicense(license2);
     }
 
     private async Task<string?> ResolveFromRepositoryUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
@@ -180,6 +214,7 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         var license = useFinalUrl
             ? await ResolveFromFinalUrlAsync(uri, repositoryUriLicenseResolvers)
             : await ResolveFromUrlAsync(uri, repositoryUriLicenseResolvers);
+        license = UnifyLicense(license);
         if (license != null)
         {
             LicenseCache[resolvedFileInfo.NuSpec.Id] = license;
@@ -199,11 +234,19 @@ internal class LicenseService(IEnumerable<ILicenseUriLicenseResolver> licenseUri
         var license = useFinalUrl
             ? await ResolveFromFinalUrlAsync(uri, licenseUriLicenseResolvers)
             : await ResolveFromUrlAsync(uri, licenseUriLicenseResolvers);
-        if (license != null)
-        {
-            LicenseCache[resolvedFileInfo.NuSpec.Id] = license;
-            LicenseCache[resolvedFileInfo.NuSpec.LicenseUrl] = license;
-        }
+        license = UnifyLicense(license);
+        if (license == null)
+            return null;
+        LicenseCache[resolvedFileInfo.NuSpec.Id] = license;
+        LicenseCache[resolvedFileInfo.NuSpec.LicenseUrl] = license;
         return license;
     }
+    [GeneratedRegex(@"\\license\.(txt|md)$", RegexOptions.IgnoreCase, 300)]
+    private static partial Regex LicenseFileRegex();
+    [GeneratedRegex(@"(\f|\uFEFF|\u200B)", RegexOptions.None, 300)]
+    private static partial Regex ControlCharacterRegex();
+    [GeneratedRegex(@"(?<!\r)\n", RegexOptions.None, 300)]
+    private static partial Regex SingleLineFeedRegex();
+    [GeneratedRegex(@"\r(?!\n)", RegexOptions.None, 300)]
+    private static partial Regex SingleCarriageReturnRegex();
 }
