@@ -10,7 +10,7 @@
     <ToolCommandName>dotnet-thirdpartynotices</ToolCommandName>
     <PackageId>DotnetThirdPartyNotices</PackageId>
     <Description>A .NET tool to generate file with third party legal notices</Description>
-    <PackageVersion>0.3.0</PackageVersion>
+    <PackageVersion>0.3.1</PackageVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/bugproof/DotnetThirdPartyNotices</RepositoryUrl>
