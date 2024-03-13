@@ -1,8 +1,8 @@
 # dotnet-thirdpartynotices
 
 [![NuGet](https://img.shields.io/nuget/v/DotnetThirdPartyNotices.svg)](https://www.nuget.org/packages/DotnetThirdPartyNotices/)
-[![NuGet downloads](https://img.shields.io/nuget/dt/SharpIppNext.svg)](https://www.nuget.org/packages/SharpIppNext)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/danielklecha/SharpIppNext/blob/master/LICENSE.txt)
+[![NuGet downloads](https://img.shields.io/nuget/dt/DotnetThirdPartyNotices.svg)](https://www.nuget.org/packages/DotnetThirdPartyNotices/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/bugproof/DotnetThirdPartyNotices/blob/master/LICENSE)
 
 ![bcs](https://i.giphy.com/media/giFr1HNq8p5gOQ3nCv/200.gif)
 
