@@ -14,7 +14,7 @@ using System.Reflection;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Warning()
-    .MinimumLevel.Override("DotnetThirdPartyNotices", LogEventLevel.Debug)
+    .MinimumLevel.Override("DotnetThirdPartyNotices", LogEventLevel.Information)
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
