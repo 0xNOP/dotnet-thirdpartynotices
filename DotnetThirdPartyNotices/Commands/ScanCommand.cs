@@ -22,9 +22,10 @@ internal class ScanCommand : Command
     {
         AddArgument(new Argument<string>("scan-dir", "Path of the directory to look for projects (optional)") { Arity = ArgumentArity.ZeroOrOne });
         AddOption(new Option<string>("--output-filename", () => "third-party-notices.txt", "Output filename"));
-        AddOption(new Option<bool>("--copy-to-outdir", () => false, "Copy output file to output directory in Release configuration"));
+        AddOption(new Option<bool>("--copy-to-outdir", () => false, "Copy output file to output directory in selected configuration"));
         AddOption(new Option<string>("--filter", () => string.Empty, "Filter project files"));
         AddOption(new Option<string>("--github-token", () => string.Empty, "GitHub's token"));
+        AddOption(new Option<string>("--configuration", () => "Release", "Project configuration to use"));
     }
 
     internal new class Handler(ILogger<Handler> logger, IProjectService projectService, ILicenseService licenseService, DynamicSettings dynamicSettings) : ICommandHandler
@@ -34,6 +35,7 @@ internal class ScanCommand : Command
         public bool CopyToOutDir { get; set; }
         public string? Filter { get; set; }
         public string? GithubToken { get; set; }
+        public string? Configuration { get; set; }
 
         private readonly Dictionary<string, List<ResolvedFileInfo>> _licenseContents = [];
         private readonly List<ResolvedFileInfo> _unresolvedFiles = [];
@@ -74,9 +76,9 @@ internal class ScanCommand : Command
         {
             var stopWatch = new Stopwatch();
             stopWatch.Start();
-            logger.LogInformation("Resolving files for {ProjectName}...", Path.GetFileName(projectFilePath));
+            logger.LogInformation("Resolving files for {ProjectName} using {configuration} configuration...", Path.GetFileName(projectFilePath), Configuration ?? "Release");
             var project = new Project(projectFilePath);
-            project.SetProperty("Configuration", "Release");
+            project.SetProperty("Configuration", Configuration ?? "Release");
             project.SetProperty("DesignTimeBuild", "true");
             var resolvedFiles = projectService.ResolveFiles(project).ToList();
             logger.LogInformation("Resolved files count: {ResolvedFilesCount}", resolvedFiles.Count);
