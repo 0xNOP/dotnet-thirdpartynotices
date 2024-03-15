@@ -45,9 +45,8 @@ internal class ProjectService(ILogger<ProjectService> logger, ILocalPackageServi
             var assemblyPath = item.EvaluatedInclude;
             var versionInfo = FileVersionInfo.GetVersionInfo(assemblyPath);
             var packagePath = localPackageService.GetPackagePathFromAssemblyPath(assemblyPath);
-            var resolvedFileInfo = new ResolvedFileInfo
+            var resolvedFileInfo = new ResolvedFileInfo(assemblyPath)
             {
-                SourcePath = assemblyPath,
                 VersionInfo = versionInfo,
                 RelativeOutputPath = Path.GetFileName(assemblyPath),
                 PackagePath = packagePath,
@@ -81,9 +80,8 @@ internal class ProjectService(ILogger<ProjectService> logger, ILocalPackageServi
             var relativePath = item.GetMetadataValue("RelativePath");
             var packagePath = localPackageService.GetPackagePathFromAssemblyPath(assemblyPath);
             var nuSpec = localPackageService.GetNuSpecFromPackagePath(packagePath) ?? throw new ApplicationException($"Cannot find package path from assembly path ({assemblyPath})");
-            var resolvedFileInfo = new ResolvedFileInfo
+            var resolvedFileInfo = new ResolvedFileInfo(assemblyPath)
             {
-                SourcePath = assemblyPath,
                 VersionInfo = FileVersionInfo.GetVersionInfo(assemblyPath),
                 NuSpec = nuSpec,
                 RelativeOutputPath = relativePath,

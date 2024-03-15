@@ -109,7 +109,9 @@ internal class ScanCommand : Command
         {
             if (outputFilePath == null)
                 return;
-            logger.LogInformation("Resolved {LicenseContentsCount} licenses for {Sum}/{ResolvedFilesCount} files", _licenseContents.Count, _licenseContents.Values.Sum(v => v.Count), _licenseContents.Values.Sum(v => v.Count) + _unresolvedFiles.Count);
+            var uniqueResolvedFilesCount = _licenseContents.Values.Sum(v => v.GroupBy(x => x.SourcePath).Count());
+            var uniqueUnresolvedFilesCount = _unresolvedFiles.GroupBy(x => x.SourcePath).Count();
+            logger.LogInformation("Resolved {LicenseContentsCount} licenses for {Sum}/{ResolvedFilesCount} files", _licenseContents.Count, uniqueResolvedFilesCount, uniqueResolvedFilesCount + uniqueUnresolvedFilesCount);
             logger.LogInformation("Unresolved files: {UnresolvedFilesCount}", _unresolvedFiles.Count);
             var stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -117,7 +119,7 @@ internal class ScanCommand : Command
             foreach (var (licenseContent, resolvedFileInfos) in _licenseContents)
             {
                 var longestNameLen = 0;
-                foreach (var resolvedFileInfo in resolvedFileInfos)
+                foreach (var resolvedFileInfo in resolvedFileInfos.GroupBy(x => x.SourcePath).Select(x => x.First()))
                 {
                     var strLen = resolvedFileInfo.RelativeOutputPath?.Length ?? 0;
                     if (strLen > longestNameLen)
