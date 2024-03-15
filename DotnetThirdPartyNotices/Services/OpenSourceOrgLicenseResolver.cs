@@ -1,11 +1,13 @@
-﻿using System;
+﻿using DotnetThirdPartyNotices.Models;
+using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DotnetThirdPartyNotices.Services;
 
-internal class OpenSourceOrgLicenseResolver : ILicenseUriLicenseResolver
+internal class OpenSourceOrgLicenseResolver(DynamicSettings dynamicSettings) : ILicenseUriLicenseResolver
 {
     public bool CanResolve(Uri licenseUri) => licenseUri.Host == "opensource.org";
 
@@ -20,6 +22,8 @@ internal class OpenSourceOrgLicenseResolver : ILicenseUriLicenseResolver
         HttpClient httpClient = new() { BaseAddress = new Uri("https://api.github.com") };
         // https://developer.github.com/v3/#user-agent-required
         httpClient.DefaultRequestHeaders.Add("User-Agent", "DotnetLicense");
+        if (!string.IsNullOrEmpty(dynamicSettings.GitHubToken))
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", dynamicSettings.GitHubToken);
         var httpResponseMessage = await httpClient.GetAsync($"licenses/{licenseId}");
         if (!httpResponseMessage.IsSuccessStatusCode)
             return null;

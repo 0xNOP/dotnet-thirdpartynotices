@@ -24,15 +24,17 @@ internal class ScanCommand : Command
         AddOption(new Option<string>("--output-filename", () => "third-party-notices.txt", "Output filename"));
         AddOption(new Option<bool>("--copy-to-outdir", () => false, "Copy output file to output directory in Release configuration"));
         AddOption(new Option<string>("--filter", () => string.Empty, "Filter project files"));
+        AddOption(new Option<string>("--github-token", () => string.Empty, "GitHub's token"));
     }
 
-    internal new class Handler(ILogger<Handler> logger, IProjectService projectService, ILicenseService licenseService) : ICommandHandler
+    internal new class Handler(ILogger<Handler> logger, IProjectService projectService, ILicenseService licenseService, DynamicSettings dynamicSettings) : ICommandHandler
     {
         public string? ScanDir { get; set; }
         public string? OutputFilename { get; set; }
         public bool CopyToOutDir { get; set; }
         public string? Filter { get; set; }
-        public bool Merge { get; set; }
+        public string? GithubToken { get; set; }
+
         private readonly Dictionary<string, List<ResolvedFileInfo>> _licenseContents = [];
         private readonly List<ResolvedFileInfo> _unresolvedFiles = [];
 
@@ -45,6 +47,7 @@ internal class ScanCommand : Command
         {
             MSBuildLocator.RegisterDefaults();
             ScanDir ??= Directory.GetCurrentDirectory();
+            dynamicSettings.GitHubToken = GithubToken;
             var projectFilePaths = projectService.GetProjectFilePaths(ScanDir);
             projectFilePaths = GetFilteredProjectPathes(projectFilePaths);
             if (projectFilePaths.Length == 0)

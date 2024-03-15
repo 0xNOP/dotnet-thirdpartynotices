@@ -1,12 +1,14 @@
-﻿using System;
+﻿using DotnetThirdPartyNotices.Models;
+using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DotnetThirdPartyNotices.Services;
 
-internal class GithubRepositoryLicenseResolver(IHttpClientFactory httpClientFactory) : IProjectUriLicenseResolver, IRepositoryUriLicenseResolver
+internal class GithubRepositoryLicenseResolver(IHttpClientFactory httpClientFactory, DynamicSettings dynamicSettings) : IProjectUriLicenseResolver, IRepositoryUriLicenseResolver
 {
     public bool CanResolve(Uri uri) => uri.Host == "github.com";
 
@@ -22,6 +24,8 @@ internal class GithubRepositoryLicenseResolver(IHttpClientFactory httpClientFact
         };
         // https://developer.github.com/v3/#user-agent-required
         httpClient.DefaultRequestHeaders.Add("User-Agent", "DotnetLicense");
+        if (!string.IsNullOrEmpty(dynamicSettings.GitHubToken))
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", dynamicSettings.GitHubToken);
         var response = await httpClient.GetAsync(uriBuilder.Uri);
         if (!response.IsSuccessStatusCode)
             return null;

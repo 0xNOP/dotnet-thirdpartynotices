@@ -1,4 +1,5 @@
 ﻿using DotnetThirdPartyNotices.Commands;
+using DotnetThirdPartyNotices.Models;
 using DotnetThirdPartyNotices.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -34,6 +35,7 @@ var builder = new CommandLineBuilder(new ScanCommand())
             x.AddSingleton<ILicenseService, LicenseService>();
             x.AddSingleton<ILocalPackageService, LocalPackageService>();
             x.AddSingleton<IProjectService, ProjectService>();
+            x.AddSingleton<DynamicSettings>();
             x.AddHttpClient();
             var assembly = Assembly.GetExecutingAssembly();
             var types = assembly.GetTypes();
