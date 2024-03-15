@@ -31,6 +31,8 @@ Options:
 - `--output-filename` allow to change output filename
 - `--copy-to-outdir` allow to copy output file to output directory in Release configuration
 - `--filter` allow to use regex to filter project files
+- `--configuration` allow to change configuration name (tool uses Release by default)
+- `--github-token` allow to use GitHub's token
 
 Note that if you use the solution folder and don't use `--copy-to-outdir` then licenses from all projects will be merged to single file.
 
