@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DotnetThirdPartyNotices.Models;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -10,11 +11,11 @@ internal class NetFrameworkLicenseResolver : ILicenseUriLicenseResolver, IFileVe
 {
     private static string? _licenseContent;
 
-    public bool CanResolve(Uri licenseUri) => licenseUri.ToString().Contains("LinkId=529443");
-    public bool CanResolve(FileVersionInfo fileVersionInfo) => fileVersionInfo.ProductName == "Microsoft® .NET Framework";
+    public Task<bool> CanResolveAsync(Uri licenseUri, ResolverOptions resolverOptions, CancellationToken cancellationToken) => Task.FromResult(licenseUri.ToString().Contains("LinkId=529443"));
+    public Task<bool> CanResolveAsync(FileVersionInfo fileVersionInfo, CancellationToken cancellationToken) => Task.FromResult(fileVersionInfo.ProductName == "Microsoft® .NET Framework");
 
-    public Task<string?> Resolve(Uri licenseUri) => GetLicenseContent();
-    public Task<string?> Resolve(FileVersionInfo fileVersionInfo) => GetLicenseContent();
+    public Task<string?> ResolveAsync(Uri licenseUri, ResolverOptions resolverOptions, CancellationToken cancellationToken) => GetLicenseContent();
+    public Task<string?> ResolveAsync(FileVersionInfo fileVersionInfo, ResolverOptions resolverOptions, CancellationToken cancellationToken) => GetLicenseContent();
 
     public async Task<string?> GetLicenseContent()
     {

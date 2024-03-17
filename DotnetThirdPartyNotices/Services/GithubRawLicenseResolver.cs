@@ -4,23 +4,23 @@ using System.Text;
 
 namespace DotnetThirdPartyNotices.Services;
 
-internal class GithubRawLicenseResolver(IHttpClientFactory httpClientFactory, DynamicSettings dynamicSettings) : ILicenseUriLicenseResolver
+internal class GithubRawLicenseResolver(IHttpClientFactory httpClientFactory) : ILicenseUriLicenseResolver
 {
-    public bool CanResolve(Uri uri) => uri.Host == "github.com";
+    public Task<bool> CanResolveAsync(Uri uri, ResolverOptions resolverOptions, CancellationToken cancellationToken) => Task.FromResult(uri.Host == "github.com");
 
-    public async Task<string?> Resolve(Uri uri)
+    public async Task<string?> ResolveAsync(Uri uri, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         var uriBuilder = new UriBuilder(uri) { Host = "raw.githubusercontent.com" };
         uriBuilder.Path = uriBuilder.Path.Replace("/blob", string.Empty);
         var httpClient = httpClientFactory.CreateClient();
         // https://developer.github.com/v3/#user-agent-required
         httpClient.DefaultRequestHeaders.Add("User-Agent", "DotnetLicense");
-        if (!string.IsNullOrEmpty(dynamicSettings.GitHubToken))
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", dynamicSettings.GitHubToken);
-        var httpResponseMessage = await httpClient.GetAsync(uriBuilder.Uri);
+        if (!string.IsNullOrEmpty(resolverOptions.GitHubToken))
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", resolverOptions.GitHubToken);
+        var httpResponseMessage = await httpClient.GetAsync(uriBuilder.Uri, cancellationToken);
         if (!httpResponseMessage.IsSuccessStatusCode
             || httpResponseMessage.Content.Headers.ContentType?.MediaType != "text/plain")
             return null;
-        return await httpResponseMessage.Content.ReadAsStringAsync();
+        return await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
     }
 }

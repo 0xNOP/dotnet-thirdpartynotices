@@ -1,7 +1,9 @@
-﻿namespace DotnetThirdPartyNotices.Services;
+﻿using DotnetThirdPartyNotices.Models;
+
+namespace DotnetThirdPartyNotices.Services;
 
 internal interface IUriLicenseResolver
 {
-    bool CanResolve(Uri licenseUri);
-    Task<string?> Resolve(Uri licenseUri);
+    Task<bool> CanResolveAsync(Uri licenseUri, ResolverOptions resolverOptions, CancellationToken cancellationToken);
+    Task<string?> ResolveAsync(Uri licenseUri, ResolverOptions resolverOptions, CancellationToken cancellationToken);
 }

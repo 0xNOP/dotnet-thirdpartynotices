@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 
 namespace DotnetThirdPartyNotices.Services;
 
-internal class OpenSourceOrgLicenseResolver(DynamicSettings dynamicSettings) : ILicenseUriLicenseResolver
+internal class OpenSourceOrgLicenseResolver : ILicenseUriLicenseResolver
 {
-    public bool CanResolve(Uri licenseUri) => licenseUri.Host == "opensource.org";
+    public Task<bool> CanResolveAsync(Uri licenseUri, ResolverOptions resolverOptions, CancellationToken cancellationToken) => Task.FromResult(licenseUri.Host == "opensource.org");
 
     internal static readonly char[] separator = ['/'];
 
-    public async Task<string?> Resolve(Uri licenseUri)
+    public async Task<string?> ResolveAsync(Uri licenseUri, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         var s = licenseUri.AbsolutePath.Split(separator, StringSplitOptions.RemoveEmptyEntries);
         if (s[0] != "licenses")
@@ -22,12 +22,12 @@ internal class OpenSourceOrgLicenseResolver(DynamicSettings dynamicSettings) : I
         HttpClient httpClient = new() { BaseAddress = new Uri("https://api.github.com") };
         // https://developer.github.com/v3/#user-agent-required
         httpClient.DefaultRequestHeaders.Add("User-Agent", "DotnetLicense");
-        if (!string.IsNullOrEmpty(dynamicSettings.GitHubToken))
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", dynamicSettings.GitHubToken);
-        var httpResponseMessage = await httpClient.GetAsync($"licenses/{licenseId}");
+        if (!string.IsNullOrEmpty(resolverOptions.GitHubToken))
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", resolverOptions.GitHubToken);
+        var httpResponseMessage = await httpClient.GetAsync($"licenses/{licenseId}", cancellationToken);
         if (!httpResponseMessage.IsSuccessStatusCode)
             return null;
-        var content = await httpResponseMessage.Content.ReadAsStringAsync();
+        var content = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
         var jsonDocument = JsonDocument.Parse(content);
         return jsonDocument.RootElement.GetProperty("body").GetString();
     }
