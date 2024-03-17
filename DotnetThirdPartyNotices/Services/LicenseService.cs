@@ -8,21 +8,21 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
 {
     private static readonly Dictionary<string, string> LicenseCache = [];
 
-    public async Task<string?> ResolveFromResolvedFileInfo(ResolvedFileInfo resolvedFileInfo)
+    public async Task<string?> ResolveFromResolvedFileInfoAsync(ResolvedFileInfo resolvedFileInfo, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(resolvedFileInfo);
         if (resolvedFileInfo.NuSpec != null && LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.Id, out string? value))
             return value;
-        return (await ResolveFromLicenseRelativePathAsync(resolvedFileInfo))
-            ?? (await ResolveFromLicenseUrlAsync(resolvedFileInfo, false))
-            ?? (await ResolveFromRepositoryUrlAsync(resolvedFileInfo, false))
-            ?? (await ResolveFromProjectUrlAsync(resolvedFileInfo, false))
-            ?? (await ResolveFromPackagePathAsync(resolvedFileInfo))
-            ?? (await ResolveFromSourcePathAsync(resolvedFileInfo))
-            ?? (await ResolveFromFileVersionInfoAsync(resolvedFileInfo))
-            ?? (await ResolveFromLicenseUrlAsync(resolvedFileInfo, true))
-            ?? (await ResolveFromRepositoryUrlAsync(resolvedFileInfo, true))
-            ?? (await ResolveFromProjectUrlAsync(resolvedFileInfo, true));
+        return (await ResolveFromLicenseRelativePathAsync(resolvedFileInfo, cancellationToken))
+            ?? (await ResolveFromLicenseUrlAsync(resolvedFileInfo, false, resolverOptions, cancellationToken))
+            ?? (await ResolveFromRepositoryUrlAsync(resolvedFileInfo, false, resolverOptions, cancellationToken))
+            ?? (await ResolveFromProjectUrlAsync(resolvedFileInfo, false, resolverOptions, cancellationToken))
+            ?? (await ResolveFromPackagePathAsync(resolvedFileInfo, cancellationToken))
+            ?? (await ResolveFromSourcePathAsync(resolvedFileInfo, cancellationToken))
+            ?? (await ResolveFromFileVersionInfoAsync(resolvedFileInfo, resolverOptions, cancellationToken))
+            ?? (await ResolveFromLicenseUrlAsync(resolvedFileInfo, true, resolverOptions, cancellationToken))
+            ?? (await ResolveFromRepositoryUrlAsync(resolvedFileInfo, true, resolverOptions, cancellationToken))
+            ?? (await ResolveFromProjectUrlAsync(resolvedFileInfo, true, resolverOptions, cancellationToken));
     }
 
     private static string? UnifyLicense(string? license)
@@ -50,8 +50,9 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         return license;
     }
 
-    private async Task<string?> ResolveFromPackagePathAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromPackagePathAsync(ResolvedFileInfo resolvedFileInfo, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrEmpty(resolvedFileInfo.PackagePath))
             return null;
         if (LicenseCache.TryGetValue(resolvedFileInfo.PackagePath, out string? value))
@@ -73,8 +74,9 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         return license;
     }
 
-    private async Task<string?> ResolveFromSourcePathAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromSourcePathAsync(ResolvedFileInfo resolvedFileInfo, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrEmpty(resolvedFileInfo.SourcePath))
             return null;
         if (LicenseCache.TryGetValue(resolvedFileInfo.SourcePath, out string? value))
@@ -107,7 +109,7 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         }
     }
 
-    private async Task<string?> ResolveFromFileVersionInfoAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromFileVersionInfoAsync(ResolvedFileInfo resolvedFileInfo, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         if(resolvedFileInfo.VersionInfo == null)
             return null;
@@ -117,9 +119,9 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         {
             foreach (var resolver in fileVersionInfoLicenseResolvers)
             {
-                if (!resolver.CanResolve(resolvedFileInfo.VersionInfo))
+                if (!await resolver.CanResolveAsync(resolvedFileInfo.VersionInfo, cancellationToken))
                     continue;
-                var license = await resolver.Resolve(resolvedFileInfo.VersionInfo);
+                var license = await resolver.ResolveAsync(resolvedFileInfo.VersionInfo, resolverOptions, cancellationToken);
                 license = UnifyLicense(license);
                 if (license != null)
                 {
@@ -136,8 +138,9 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         }
     }
 
-    private async Task<string?> ResolveFromLicenseRelativePathAsync(ResolvedFileInfo resolvedFileInfo)
+    private async Task<string?> ResolveFromLicenseRelativePathAsync(ResolvedFileInfo resolvedFileInfo, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrEmpty(resolvedFileInfo.PackagePath) || string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.LicenseRelativePath))
             return null;
         var licenseFullPath = Path.Combine(resolvedFileInfo.PackagePath, resolvedFileInfo.NuSpec.LicenseRelativePath);
@@ -163,7 +166,7 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         }
     }
 
-    private async Task<string?> ResolveFromProjectUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
+    private async Task<string?> ResolveFromProjectUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.ProjectUrl))
             return null;
@@ -174,8 +177,8 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         try
         {
             var license = useFinalUrl
-            ? await ResolveFromFinalUrlAsync(uri, projectUriLicenseResolvers)
-            : await ResolveFromUrlAsync(uri, projectUriLicenseResolvers);
+            ? await ResolveFromFinalUrlAsync(uri, projectUriLicenseResolvers, resolverOptions, cancellationToken)
+            : await ResolveFromUrlAsync(uri, projectUriLicenseResolvers, resolverOptions, cancellationToken);
             license = UnifyLicense(license);
             if (license == null)
                 return null;
@@ -190,30 +193,32 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         }
     }
 
-    private async Task<string?> ResolveFromUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers)
+    private async Task<string?> ResolveFromUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         foreach (var resolver in urlLicenseResolvers)
         {
-            if (!resolver.CanResolve(uri))
+            if (!await resolver.CanResolveAsync(uri, resolverOptions, cancellationToken))
                 continue;
-            var license = await resolver.Resolve(uri);
+            var license = await resolver.ResolveAsync(uri, resolverOptions, cancellationToken);
             license = UnifyLicense(license);
             if (license != null)
                 return license;
+            cancellationToken.ThrowIfCancellationRequested();
         }
         return null;
     }
 
-    private async Task<string?> ResolveFromFinalUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers)
+    private async Task<string?> ResolveFromFinalUrlAsync(Uri uri, IEnumerable<IUriLicenseResolver> urlLicenseResolvers, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         using var httpClient = httpClientFactory.CreateClient();
-        var httpResponseMessage = await httpClient.GetAsync(uri);
+        var httpResponseMessage = await httpClient.GetAsync(uri, cancellationToken);
         if (!httpResponseMessage.IsSuccessStatusCode && uri.AbsolutePath.EndsWith(".txt"))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             // try without .txt extension
             var fixedUri = new UriBuilder(uri);
             fixedUri.Path = fixedUri.Path.Remove(fixedUri.Path.Length - 4);
-            httpResponseMessage = await httpClient.GetAsync(fixedUri.Uri);
+            httpResponseMessage = await httpClient.GetAsync(fixedUri.Uri, cancellationToken);
             if (!httpResponseMessage.IsSuccessStatusCode)
                 return null;
         }
@@ -221,22 +226,24 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         {
             foreach (var resolver in urlLicenseResolvers)
             {
-                if (!resolver.CanResolve(httpResponseMessage.RequestMessage.RequestUri))
+                if (!await resolver.CanResolveAsync(httpResponseMessage.RequestMessage.RequestUri, resolverOptions, cancellationToken))
                     continue;
-                var license = await resolver.Resolve(httpResponseMessage.RequestMessage.RequestUri);
+                var license = await resolver.ResolveAsync(httpResponseMessage.RequestMessage.RequestUri, resolverOptions, cancellationToken);
                 license = UnifyLicense(license);
                 if (license != null)
                     return license;
+                cancellationToken.ThrowIfCancellationRequested();
             }
         }
         // Finally, if no license uri can be found despite all the redirects, try to blindly get it
         if (httpResponseMessage.Content.Headers.ContentType?.MediaType != "text/plain")
             return null;
-        var license2 = await httpResponseMessage.Content.ReadAsStringAsync();
+        var license2 = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         return UnifyLicense(license2);
     }
 
-    private async Task<string?> ResolveFromRepositoryUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
+    private async Task<string?> ResolveFromRepositoryUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.RepositoryUrl))
             return null;
@@ -247,8 +254,8 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         try
         {
             var license = useFinalUrl
-            ? await ResolveFromFinalUrlAsync(uri, repositoryUriLicenseResolvers)
-            : await ResolveFromUrlAsync(uri, repositoryUriLicenseResolvers);
+            ? await ResolveFromFinalUrlAsync(uri, repositoryUriLicenseResolvers, resolverOptions, cancellationToken)
+            : await ResolveFromUrlAsync(uri, repositoryUriLicenseResolvers, resolverOptions, cancellationToken);
             license = UnifyLicense(license);
             if (license == null)
                 return null;
@@ -263,8 +270,9 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         }
     }
 
-    private async Task<string?> ResolveFromLicenseUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl)
+    private async Task<string?> ResolveFromLicenseUrlAsync(ResolvedFileInfo resolvedFileInfo, bool useFinalUrl, ResolverOptions resolverOptions, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrEmpty(resolvedFileInfo.NuSpec?.LicenseUrl))
             return null;
         if (LicenseCache.TryGetValue(resolvedFileInfo.NuSpec.LicenseUrl, out string? value))
@@ -274,8 +282,8 @@ internal partial class LicenseService(ILogger<LicenseService> logger, IEnumerabl
         try
         {
             var license = useFinalUrl
-            ? await ResolveFromFinalUrlAsync(uri, licenseUriLicenseResolvers)
-            : await ResolveFromUrlAsync(uri, licenseUriLicenseResolvers);
+            ? await ResolveFromFinalUrlAsync(uri, licenseUriLicenseResolvers, resolverOptions, cancellationToken)
+            : await ResolveFromUrlAsync(uri, licenseUriLicenseResolvers, resolverOptions, cancellationToken);
             license = UnifyLicense(license);
             if (license == null)
                 return null;

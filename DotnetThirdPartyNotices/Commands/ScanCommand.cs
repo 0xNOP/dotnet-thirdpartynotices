@@ -28,7 +28,7 @@ internal class ScanCommand : Command
         AddOption(new Option<string>("--configuration", () => "Release", "Project configuration to use"));
     }
 
-    internal new class Handler(ILogger<Handler> logger, IProjectService projectService, ILicenseService licenseService, DynamicSettings dynamicSettings) : ICommandHandler
+    internal new class Handler(ILogger<Handler> logger, IProjectService projectService, ILicenseService licenseService) : ICommandHandler
     {
         public string? ScanDir { get; set; }
         public string? OutputFilename { get; set; }
@@ -47,9 +47,9 @@ internal class ScanCommand : Command
 
         public async Task<int> InvokeAsync(InvocationContext context)
         {
+            var cancellationToken = context.GetCancellationToken();
             MSBuildLocator.RegisterDefaults();
             ScanDir ??= Directory.GetCurrentDirectory();
-            dynamicSettings.GitHubToken = GithubToken;
             var projectFilePaths = projectService.GetProjectFilePaths(ScanDir);
             projectFilePaths = GetFilteredProjectPathes(projectFilePaths);
             if (projectFilePaths.Length == 0)
@@ -58,9 +58,9 @@ internal class ScanCommand : Command
                 return 0;
             }
             foreach (var projectFilePath in projectFilePaths)
-                await ScanProjectAsync(projectFilePath);
+                await ScanProjectAsync(projectFilePath, cancellationToken);
             if (!CopyToOutDir)
-                await GenerateOutputFileAsync(OutputFilename);
+                await GenerateOutputFileAsync(OutputFilename, cancellationToken);
             return 0;
         }
 
@@ -72,8 +72,9 @@ internal class ScanCommand : Command
             return projectPathes.Where(x => filterRegex.IsMatch(x)).ToArray();
         }
 
-        private async Task ScanProjectAsync(string projectFilePath)
+        private async Task ScanProjectAsync(string projectFilePath, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             logger.LogInformation("Resolving files for {ProjectName} using {configuration} configuration...", Path.GetFileName(projectFilePath), Configuration ?? "Release");
@@ -84,6 +85,7 @@ internal class ScanCommand : Command
             logger.LogInformation("Resolved files count: {ResolvedFilesCount}", resolvedFiles.Count);
             foreach (var resolvedFileInfo in resolvedFiles)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 logger.LogInformation("Resolving license for {RelativeOutputPath}", resolvedFileInfo.RelativeOutputPath);
                 if (resolvedFileInfo.NuSpec != null)
                 {
@@ -93,7 +95,11 @@ internal class ScanCommand : Command
                 {
                     logger.LogWarning("Package not found");
                 }
-                var licenseContent = await licenseService.ResolveFromResolvedFileInfo(resolvedFileInfo);
+                var resolverOptions = new ResolverOptions
+                {
+                    GitHubToken = GithubToken
+                };
+                var licenseContent = await licenseService.ResolveFromResolvedFileInfoAsync(resolvedFileInfo, resolverOptions, cancellationToken);
                 if (licenseContent == null)
                 {
                     _unresolvedFiles.Add(resolvedFileInfo);
@@ -107,11 +113,12 @@ internal class ScanCommand : Command
             stopWatch.Stop();
             logger.LogInformation("Project {ProjectName} resolved in {StopwatchElapsedMilliseconds}ms", Path.GetFileName(projectFilePath), stopWatch.ElapsedMilliseconds);
             if (CopyToOutDir && !string.IsNullOrEmpty(ScanDir) && !string.IsNullOrEmpty(OutputFilename))
-                await GenerateOutputFileAsync(Path.Combine(ScanDir, project.GetPropertyValue("OutDir"), Path.GetFileName(OutputFilename)));
+                await GenerateOutputFileAsync(Path.Combine(ScanDir, project.GetPropertyValue("OutDir"), Path.GetFileName(OutputFilename)), cancellationToken);
         }
 
-        private async Task GenerateOutputFileAsync(string? outputFilePath)
+        private async Task GenerateOutputFileAsync(string? outputFilePath, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (outputFilePath == null)
                 return;
             var uniqueResolvedFilesCount = _licenseContents.Values.Sum(v => v.GroupBy(x => x.SourcePath).Count());
@@ -139,6 +146,7 @@ internal class ScanCommand : Command
             logger.LogInformation("Generate licenses in {StopwatchElapsedMilliseconds}ms", stopWatch.ElapsedMilliseconds);
             if (stringBuilder.Length == 0)
                 return;
+            cancellationToken.ThrowIfCancellationRequested();
             logger.LogInformation("Writing to {OutputFilename}...", outputFilePath);
             await System.IO.File.WriteAllTextAsync(outputFilePath, stringBuilder.ToString());
             _licenseContents.Clear();

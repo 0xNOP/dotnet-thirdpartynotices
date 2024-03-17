@@ -4,5 +4,5 @@ namespace DotnetThirdPartyNotices.Services;
 
 internal interface ILicenseService
 {
-    Task<string?> ResolveFromResolvedFileInfo(ResolvedFileInfo resolvedFileInfo);
+    Task<string?> ResolveFromResolvedFileInfoAsync(ResolvedFileInfo resolvedFileInfo, ResolverOptions resolverOptions, CancellationToken cancellationToken);
 }

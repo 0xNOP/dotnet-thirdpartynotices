@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DotnetThirdPartyNotices.Models;
 
-internal class DynamicSettings
+internal class ResolverOptions
 {
     public string? GitHubToken { get; set; }
 }
